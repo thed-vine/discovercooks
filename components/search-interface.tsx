@@ -267,7 +267,7 @@ export function SearchInterface() {
     (filters.verified ? 1 : 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+  <div className="fixed inset-0 h-screen w-screen bg-gray-50 pb-16 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
       {/* Search Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="p-4 space-y-4">
@@ -487,7 +487,7 @@ export function SearchInterface() {
       </div>
 
       {/* Results */}
-      <div className="p-4">
+  <div className="p-4 h-[calc(100dvh-112px)] overflow-y-auto" style={{ maxHeight: '66vh' }}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">
             {filteredChefs.length} chef{filteredChefs.length !== 1 ? "s" : ""} found

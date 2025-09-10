@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -145,8 +146,8 @@ export default function ProfilePage() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{mockUser.name}</h1>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
+                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{mockUser.name}</h1>
+                  <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground mt-1">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
                       <span>{mockUser.location}</span>
@@ -167,14 +168,14 @@ export default function ProfilePage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-4">
-                <div className="text-center p-3 bg-gray-50 rounded-xl">
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
                   <div className="text-xl sm:text-2xl font-bold text-foreground">{mockUser.totalBookings}</div>
                   <div className="text-xs sm:text-sm text-muted-foreground">Bookings</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
                   <div className="text-xl sm:text-2xl font-bold text-foreground">{mockUser.favoriteChefs}</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">Favorites</div>
+                  <div className="text-[12px] sm:text-sm text-muted-foreground">Favorites</div>
                 </div>
                 {/* <div className="text-center p-3 bg-gray-50 rounded-xl">
                   <div className="flex items-center justify-center gap-1">
@@ -192,22 +193,22 @@ export default function ProfilePage() {
       {/* Content Tabs */}
       <div className="p-4 sm:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6 bg-white rounded-xl p-1">
+          <TabsList className="grid w-fit grid-cols-4 mb-4 bg-white rounded-xl">
             <TabsTrigger value="profile" className="text-xs sm:text-sm rounded-lg">
               <User className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Profile</span>
+              {activeTab === "profile" && <span className="sm:inline">Profile</span>}
             </TabsTrigger>
             <TabsTrigger value="favorites" className="text-xs sm:text-sm rounded-lg">
               <Heart className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Favorites</span>
+              {activeTab === "favorites" && <span className="sm:inline">Favorites</span>}
             </TabsTrigger>
             <TabsTrigger value="activity" className="text-xs sm:text-sm rounded-lg">
               <Calendar className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Activity</span>
+              {activeTab === "activity" && <span className="sm:inline">Activity</span>}
             </TabsTrigger>
             <TabsTrigger value="settings" className="text-xs sm:text-sm rounded-lg">
               <Settings className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Settings</span>
+              {activeTab === "settings" && <span className="sm:inline">Settings</span>}
             </TabsTrigger>
           </TabsList>
 
@@ -264,7 +265,7 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* Favorites Tab */}
-          <TabsContent value="favorites" className="space-y-4">
+          <TabsContent value="favorites" className="space-y-4 overflow-y-auto" style={{ maxHeight: '60vh' }}>
             {mockFavoriteChefs.map((chef) => (
               <motion.div key={chef.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <Card className="border-0 shadow-sm rounded-2xl hover:shadow-md transition-shadow">
@@ -290,9 +291,11 @@ export default function ProfilePage() {
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
+                        <Link href={`/book/${chef.id}`}>
                         <Button size="sm" className="bg-primary text-white rounded-xl text-xs sm:text-sm">
                           Book Again
                         </Button>
+                        </Link>
                         <Button size="sm" variant="outline" className="rounded-xl text-xs sm:text-sm bg-transparent">
                           <Heart className="h-3 w-3 sm:h-4 sm:w-4 fill-red-500 text-red-500" />
                         </Button>

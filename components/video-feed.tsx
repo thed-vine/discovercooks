@@ -305,7 +305,8 @@ export function VideoFeed() {
   return (
     <div
       ref={containerRef}
-      className="relative h-screen overflow-hidden bg-black"
+      className="fixed inset-0 h-screen w-screen overflow-hidden bg-black touch-none"
+      style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
