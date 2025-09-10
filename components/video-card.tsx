@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Heart, MessageCircle, Share, Star, CheckCircle, Bookmark, User } from "lucide-react"
+import { Heart, MessageCircle, Share, Star, CheckCircle, Bookmark, User, Play, Pause } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +47,137 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
   const [isLiked, setIsLiked] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(video.isBookmarked)
   const [likes, setLikes] = useState(video.likes)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showPlayButton, setShowPlayButton] = useState(true)
+  const [showHeart, setShowHeart] = useState(false)
+  const [heartPosition, setHeartPosition] = useState({ x: 0, y: 0 })
+  const [isHovering, setIsHovering] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const lastTapRef = useRef(0)
+  const touchStartYRef = useRef(0)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Auto-hide play button after delay
+  useEffect(() => {
+    if (isPlaying && !isHovering) {
+      // Clear any existing timeout
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
+      
+      // Set new timeout to hide play button
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowPlayButton(false)
+      }, 2000) // Hide after 2 seconds
+    } else {
+      // Show play button when paused or hovering
+      setShowPlayButton(true)
+      
+      // Clear timeout if it exists
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+        hideTimeoutRef.current = null
+      }
+    }
+
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
+    }
+  }, [isPlaying, isHovering])
+
+  // Reset showPlayButton when video becomes inactive
+  useEffect(() => {
+    if (!isActive) {
+      setShowPlayButton(true)
+    }
+  }, [isActive])
+
+  // Double-tap detection logic
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const now = Date.now()
+    const touch = e.touches[0]
+    
+    // Check if this is a double tap (within 300ms of last tap)
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected - show heart animation and like
+      setHeartPosition({ x: touch.clientX, y: touch.clientY })
+      setShowHeart(true)
+      handleLike()
+      
+      // Hide heart after animation
+      setTimeout(() => setShowHeart(false), 800)
+      
+      // Reset tap timer
+      lastTapRef.current = 0
+    } else {
+      // First tap - record time and position
+      lastTapRef.current = now
+      touchStartYRef.current = touch.clientY
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // If user is scrolling, cancel double-tap detection
+    const touch = e.touches[0]
+    if (Math.abs(touch.clientY - touchStartYRef.current) > 10) {
+      lastTapRef.current = 0
+    }
+  }
+
+  const handleTouchEnd = () => {
+    // Clear double-tap detection after timeout
+    setTimeout(() => {
+      if (lastTapRef.current > 0) {
+        lastTapRef.current = 0
+      }
+    }, 300)
+  }
+
+  // Handle video play/pause based on isActive prop
+  useEffect(() => {
+    if (!videoRef.current) return
+
+    if (isActive) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        videoRef.current?.play().catch(error => {
+          console.log("Auto-play prevented:", error)
+          setShowPlayButton(true)
+        })
+      }, 300)
+      
+      return () => clearTimeout(timer)
+    } else {
+      videoRef.current.pause()
+      setIsPlaying(false)
+      setShowPlayButton(true)
+    }
+  }, [isActive])
+
+  const handlePlayPause = () => {
+    if (!videoRef.current) return
+
+    if (videoRef.current.paused) {
+      videoRef.current.play()
+      setIsPlaying(true)
+      
+      // Show play button briefly before auto-hiding
+      setShowPlayButton(true)
+    } else {
+      videoRef.current.pause()
+      setIsPlaying(false)
+      setShowPlayButton(true)
+    }
+  }
+
+  const handleVideoClick = () => {
+    handlePlayPause()
+    
+    // Show play button briefly when toggling play state
+    setShowPlayButton(true)
+  }
 
   const handleLike = () => {
     setIsLiked(!isLiked)
@@ -57,20 +188,124 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
     setIsBookmarked(!isBookmarked)
   }
 
+  // Handle mouse enter/leave for desktop
+  const handleMouseEnter = () => {
+    setIsHovering(true)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovering(false)
+  }
+
+  // Add event listeners for video events
+  useEffect(() => {
+    const videoElement = videoRef.current
+    if (!videoElement) return
+
+    const handlePlay = () => {
+      setIsPlaying(true)
+      // Show play button briefly when video starts playing
+      setShowPlayButton(true)
+    }
+    
+    const handlePause = () => {
+      setIsPlaying(false)
+      setShowPlayButton(true)
+    }
+    
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setShowPlayButton(true)
+    }
+
+    videoElement.addEventListener('play', handlePlay)
+    videoElement.addEventListener('pause', handlePause)
+    videoElement.addEventListener('ended', handleEnded)
+
+    return () => {
+      videoElement.removeEventListener('play', handlePlay)
+      videoElement.removeEventListener('pause', handlePause)
+      videoElement.removeEventListener('ended', handleEnded)
+    }
+  }, [])
+
+  // Heart animation component
+  const HeartAnimation = () => (
+    <motion.div
+      className="absolute pointer-events-none z-50"
+      style={{ 
+        left: heartPosition.x - 40, 
+        top: heartPosition.y - 40,
+        transform: 'translate(-50%, -50%)'
+      }}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ 
+        scale: [0, 1.2, 1],
+        opacity: [0, 1, 0]
+      }}
+      transition={{ duration: 0.8 }}
+    >
+      <Heart className="w-20 h-20 text-red-500 fill-current" />
+    </motion.div>
+  )
+
   if (!isActive) return null
 
   return (
     <div className="absolute inset-0 bg-black">
       {/* Video Background */}
-      <div className="relative h-full w-full">
-        <img
-          src={video.videoUrl || "/placeholder.svg?height=800&width=400&query=chef cooking video"}
-          alt={video.title}
+      <div 
+        className="relative h-full w-full"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <video
+          ref={videoRef}
+          src={video.videoUrl || "/placeholder-video.mp4"}
           className="h-full w-full object-cover"
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/video-poster.jpg"
+          onClick={handleVideoClick}
         />
+
+        {/* Double-tap area */}
+        <div 
+          className="absolute inset-0"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Heart animation */}
+          {showHeart && <HeartAnimation />}
+        </div>
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+        {/* Play/Pause Overlay Button */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ 
+            opacity: showPlayButton ? 1 : 0,
+            scale: showPlayButton ? 1 : 0.8
+          }}
+          transition={{ duration: 0.2 }}
+          onClick={handlePlayPause}
+          className="absolute inset-0 flex items-center justify-center w-full h-full bg-black/30"
+          aria-label={isPlaying ? "Pause video" : "Play video"}
+          style={{ pointerEvents: showPlayButton ? 'auto' : 'none' }}
+        >
+          <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+            {isPlaying ? (
+              <Pause className="h-8 w-8 text-white" />
+            ) : (
+              <Play className="h-8 w-8 text-white ml-1" />
+            )}
+          </div>
+        </motion.button>
 
         <div className="absolute inset-0 flex">
           <motion.button

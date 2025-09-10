@@ -123,3 +123,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Force a mobile-like width on all devices */
+.mobile-container {
+  /* Max width of a common mobile device (e.g., iPhone 13 Pro Max) */
+  max-width: 428px; 
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+/* Optional: Add a background to the sides on desktop */
+body {
+  background-color: #f0f0f0; /* Shows on the sides of the container */
+}
+
+.mobile-container {
+  background-color: white; /* Your app's background */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* Optional: gives a "floating" phone-like effect */
+}

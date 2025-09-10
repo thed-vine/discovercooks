@@ -1,3 +1,4 @@
+// components/video-feed.tsx
 "use client"
 
 import type React from "react"
@@ -19,7 +20,7 @@ const mockVideos = [
       location: "New York, NY",
       priceRange: "$$$",
     },
-    videoUrl: "/chef-cooking-pasta.png",
+    videoUrl: "/cookingvideo1.mp4",
     title: "Homemade Truffle Pasta",
     description: "Learn the secrets of authentic Italian truffle pasta with fresh ingredients",
     likes: 1240,
@@ -41,7 +42,7 @@ const mockVideos = [
       location: "Los Angeles, CA",
       priceRange: "$$$$",
     },
-    videoUrl: "/sushi-preparation.png",
+    videoUrl: "/cookingvideo2.mp4",
     title: "Perfect Sushi Technique",
     description: "Master the art of sushi making with traditional Japanese methods",
     likes: 892,
@@ -63,7 +64,7 @@ const mockVideos = [
       location: "San Francisco, CA",
       priceRange: "$$$$",
     },
-    videoUrl: "/french-pastry-making.png",
+    videoUrl: "/cookingvideo3.mp4",
     title: "Classic French Croissants",
     description: "The perfect flaky croissant technique revealed by a Michelin-starred chef",
     likes: 2156,
@@ -85,7 +86,7 @@ const mockVideos = [
       location: "Austin, TX",
       priceRange: "$$",
     },
-    videoUrl: "/chef-cooking-pasta.png",
+    videoUrl: "/cookingvideo4.mp4",
     title: "Authentic Mole Poblano",
     description: "Traditional Mexican mole with 20+ ingredients, passed down through generations",
     likes: 1567,
@@ -107,7 +108,7 @@ const mockVideos = [
       location: "Seattle, WA",
       priceRange: "$$$",
     },
-    videoUrl: "/sushi-preparation.png",
+    videoUrl: "/cookingvideo5.mp4",
     title: "Korean BBQ Masterclass",
     description: "Perfect galbi and banchan preparation for an authentic Korean feast",
     likes: 934,
@@ -129,7 +130,7 @@ const mockVideos = [
       location: "Miami, FL",
       priceRange: "$$$",
     },
-    videoUrl: "/french-pastry-making.png",
+    videoUrl: "/cookingvideo6.mp4",
     title: "Asian-French Fusion",
     description: "Innovative fusion cuisine blending Asian flavors with French techniques",
     likes: 1876,
@@ -151,7 +152,7 @@ const mockVideos = [
       location: "Chicago, IL",
       priceRange: "$$",
     },
-    videoUrl: "/sushi-preparation.png",
+    videoUrl: "/cookingvideo7.mp4",
     title: "Perfect Shawarma",
     description: "Traditional Middle Eastern shawarma with homemade spices and sauces",
     likes: 1345,
@@ -173,7 +174,7 @@ const mockVideos = [
       location: "Portland, OR",
       priceRange: "$$$",
     },
-    videoUrl: "/chef-cooking-pasta.png",
+    videoUrl: "/cookingvideo8.mp4",
     title: "Fresh Mediterranean Bowl",
     description: "Healthy Mediterranean cuisine with fresh herbs and olive oil",
     likes: 987,
@@ -244,6 +245,7 @@ export function VideoFeed() {
     }
   }
 
+  // Add keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowUp" && !isScrolling) {
@@ -252,12 +254,38 @@ export function VideoFeed() {
       } else if (e.key === "ArrowDown" && !isScrolling) {
         e.preventDefault()
         handleNext()
+      } else if (e.key === " " || e.key === "Spacebar") {
+        e.preventDefault()
+        // Space bar to toggle play/pause could be added here
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [currentIndex, isScrolling])
+
+  // Add intersection observer for auto-play when videos come into view
+  useEffect(() => {
+    const options = {
+      root: containerRef.current,
+      rootMargin: '0px',
+      threshold: 0.8 // 80% of video must be visible
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          // You could add logic here to auto-play videos as they come into view
+          // if you want to implement a multi-video feed
+        }
+      })
+    }, options)
+
+    // If you have multiple video elements, you would observe them here
+    // For now, we're handling play/pause through the isActive prop
+
+    return () => observer.disconnect()
+  }, [])
 
   const slideVariants = {
     enter: (direction: number) => ({
@@ -316,7 +344,7 @@ export function VideoFeed() {
         >
           <div className="bg-black/50 text-white px-4 py-2 rounded-full text-sm">Swipe up for next chef</div>
         </motion.div>
-      )}
+      )} 
     </div>
   )
 }
