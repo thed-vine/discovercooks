@@ -174,7 +174,7 @@ export default function BookingsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
+  <div className="fixed inset-0 h-screen w-screen bg-gray-50 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
       <div className="bg-white border-b">
         <div className="p-4">
           <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
@@ -182,7 +182,7 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      <div className="p-4">
+  <div className="p-4 h-[calc(100dvh-64px)] overflow-y-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="upcoming" className="text-sm">

@@ -54,7 +54,9 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
   const [isHovering, setIsHovering] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const lastTapRef = useRef(0)
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const touchStartYRef = useRef(0)
+  const touchEndYRef = useRef(0)
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Auto-hide play button after delay
@@ -94,45 +96,80 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
     }
   }, [isActive])
 
-  // Double-tap detection logic
+  // Touch and tap logic for swipe, single tap, double tap
   const handleTouchStart = (e: React.TouchEvent) => {
     const now = Date.now()
     const touch = e.touches[0]
-    
-    // Check if this is a double tap (within 300ms of last tap)
+    touchStartYRef.current = touch.clientY
+    // Double-tap detection
     if (now - lastTapRef.current < 300) {
-      // Double tap detected - show heart animation and like
+      // Double tap: like
       setHeartPosition({ x: touch.clientX, y: touch.clientY })
       setShowHeart(true)
       handleLike()
-      
-      // Hide heart after animation
       setTimeout(() => setShowHeart(false), 800)
-      
-      // Reset tap timer
       lastTapRef.current = 0
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current)
+        tapTimeoutRef.current = null
+      }
     } else {
-      // First tap - record time and position
       lastTapRef.current = now
-      touchStartYRef.current = touch.clientY
+      // Set timeout for single tap (play/pause)
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current)
+      tapTimeoutRef.current = setTimeout(() => {
+        handlePlayPause()
+        tapTimeoutRef.current = null
+      }, 300)
     }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // If user is scrolling, cancel double-tap detection
     const touch = e.touches[0]
-    if (Math.abs(touch.clientY - touchStartYRef.current) > 10) {
-      lastTapRef.current = 0
-    }
+    touchEndYRef.current = touch.clientY
   }
 
   const handleTouchEnd = () => {
-    // Clear double-tap detection after timeout
-    setTimeout(() => {
-      if (lastTapRef.current > 0) {
-        lastTapRef.current = 0
+    // Swipe detection
+    const deltaY = touchStartYRef.current - touchEndYRef.current
+    if (Math.abs(deltaY) > 50) {
+      if (deltaY > 0 && canGoNext) {
+        // Swipe up
+        onNext()
+      } else if (deltaY < 0 && canGoPrevious) {
+        // Swipe down
+        onPrevious()
       }
-    }, 300)
+      // Cancel tap timeout if swipe
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current)
+        tapTimeoutRef.current = null
+      }
+    }
+    // Reset
+    touchStartYRef.current = 0
+    touchEndYRef.current = 0
+  }
+
+  // Mouse click logic for desktop: single click = play/pause, double click = like
+  const handleVideoClick = (e?: React.MouseEvent) => {
+    if (!e) {
+      handlePlayPause()
+      setShowPlayButton(true)
+      return
+    }
+    if (e.detail === 2) {
+      // Double click
+      const rect = (e.target as HTMLElement).getBoundingClientRect()
+      setHeartPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      setShowHeart(true)
+      handleLike()
+      setTimeout(() => setShowHeart(false), 800)
+    } else if (e.detail === 1) {
+      // Single click
+      handlePlayPause()
+      setShowPlayButton(true)
+    }
   }
 
   // Handle video play/pause based on isActive prop
@@ -172,12 +209,12 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
     }
   }
 
-  const handleVideoClick = () => {
-    handlePlayPause()
+  // const handleVideoClick = () => {
+  //   handlePlayPause()
     
-    // Show play button briefly when toggling play state
-    setShowPlayButton(true)
-  }
+  //   // Show play button briefly when toggling play state
+  //   setShowPlayButton(true)
+  // }
 
   const handleLike = () => {
     setIsLiked(!isLiked)
@@ -186,15 +223,6 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
 
   const handleBookmark = () => {
     setIsBookmarked(!isBookmarked)
-  }
-
-  // Handle mouse enter/leave for desktop
-  const handleMouseEnter = () => {
-    setIsHovering(true)
-  }
-
-  const handleMouseLeave = () => {
-    setIsHovering(false)
   }
 
   // Add event listeners for video events
@@ -256,8 +284,6 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
       {/* Video Background */}
       <div 
         className="relative h-full w-full"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         <video
           ref={videoRef}
@@ -273,10 +299,12 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
 
         {/* Double-tap area */}
         <div 
-          className="absolute inset-0"
+          className="absolute inset-0 flex"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          // Prevent scrolling on swipe
+          style={{ touchAction: 'none' }}
         >
           {/* Heart animation */}
           {showHeart && <HeartAnimation />}
@@ -307,7 +335,7 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
           </div>
         </motion.button>
 
-        <div className="absolute inset-0 flex">
+        {/* <div className="absolute inset-0 flex">
           <motion.button
             onClick={canGoPrevious ? onPrevious : undefined}
             className={cn("flex-1 opacity-0 active:bg-white/5", !canGoPrevious && "cursor-not-allowed")}
@@ -320,7 +348,7 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
             whileTap={{ scale: 0.98 }}
             aria-label="Next video"
           />
-        </div>
+        </div> */}
 
         {/* Content Overlay */}
         <div className="absolute bottom-0 left-0 right-16 p-3 pb-20">

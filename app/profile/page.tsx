@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import {
   User,
   Settings,
@@ -24,107 +27,192 @@ import {
   Shield,
   HelpCircle,
   LogOut,
+  Loader2,
 } from "lucide-react"
 
-type NotificationSettings = {
-  bookingUpdates: boolean
-  newChefs: boolean
-  promotions: boolean
-  reminders: boolean
-}
-
-// Mock user data
-const mockUser: {
+interface UserProfile {
   id: string
-  name: string
-  email: string
-  phone: string
-  avatar: string
-  location: string
-  joinDate: string
-  totalBookings: number
-  favoriteChefs: number
-  averageRating: number
-  preferences: {
-    cuisines: string[]
-    dietaryRestrictions: string[]
-    priceRange: string
-  }
-  notifications: NotificationSettings
-} = {
-  id: "user-1",
-  name: "Sarah Johnson",
-  email: "sarah.johnson@email.com",
-  phone: "+1 (555) 123-4567",
-  avatar: "/chef-portrait.png",
-  location: "New York, NY",
-  joinDate: "March 2023",
-  totalBookings: 12,
-  favoriteChefs: 8,
-  averageRating: 4.8,
-  preferences: {
-    cuisines: ["Italian", "Japanese", "French"],
-    dietaryRestrictions: ["Vegetarian"],
-    priceRange: "$$$",
-  },
-  notifications: {
-    bookingUpdates: true,
-    newChefs: false,
-    promotions: true,
-    reminders: true,
-  },
+  full_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  location: string | null
+  phone: string | null
+  created_at: string
 }
 
-const mockFavoriteChefs = [
-  {
-    id: "1",
-    name: "Marco Rodriguez",
-    avatar: "/chef-portrait.png",
-    cuisine: "Italian",
-    rating: 4.9,
-    lastBooked: "2 weeks ago",
-  },
-  {
-    id: "2",
-    name: "Sakura Tanaka",
-    avatar: "/japanese-chef-portrait.png",
-    cuisine: "Japanese",
-    rating: 4.8,
-    lastBooked: "1 month ago",
-  },
-  {
-    id: "3",
-    name: "Antoine Dubois",
-    avatar: "/french-chef-portrait.png",
-    cuisine: "French",
-    rating: 4.9,
-    lastBooked: "3 weeks ago",
-  },
-]
+interface FavoriteChef {
+  id: string
+  chef: {
+    id: string
+    name: string
+    avatar_url: string | null
+    cuisines: string[]
+    rating: number
+  }
+}
 
-const mockRecentBookings = [
-  {
-    id: "1",
-    chef: "Marco Rodriguez",
-    service: "Private Dinner Party",
-    date: "Dec 15, 2023",
-    status: "completed",
-    rating: 5,
-  },
-  {
-    id: "2",
-    chef: "Sakura Tanaka",
-    service: "Sushi Making Class",
-    date: "Nov 28, 2023",
-    status: "completed",
-    rating: 5,
-  },
-]
+interface UserBooking {
+  id: string
+  service_type: string
+  event_date: string
+  status: string
+  chef: {
+    name: string
+  }
+}
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile")
   const [isEditing, setIsEditing] = useState(false)
-  const [notifications, setNotifications] = useState<NotificationSettings>(mockUser.notifications)
+  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [favorites, setFavorites] = useState<FavoriteChef[]>([])
+  const [bookings, setBookings] = useState<UserBooking[]>([])
+  const [notifications, setNotifications] = useState({
+    bookingUpdates: true,
+    newChefs: false,
+    promotions: true,
+    reminders: true,
+  })
+
+  const { user, loading: authLoading, signOut } = useAuth()
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/auth/login")
+    }
+  }, [user, authLoading, router])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData()
+    }
+  }, [user])
+
+  const fetchUserData = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+
+      // Fetch user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError && profileError.code !== "PGRST116") {
+        console.error("Error fetching profile:", profileError)
+      } else {
+        setProfile(profileData)
+      }
+
+      // Fetch favorites
+      const { data: favoritesData, error: favoritesError } = await supabase
+        .from("favorites")
+        .select(`
+          id,
+          chef:chefs(
+            id,
+            name,
+            avatar_url,
+            cuisines,
+            rating
+          )
+        `)
+        .eq("user_id", user.id)
+
+      if (favoritesError) {
+        console.error("Error fetching favorites:", favoritesError)
+      } else {
+        // Fix: Supabase join returns chef as array, but we want object
+        setFavorites(
+          (favoritesData || []).map((fav: any) => ({
+            ...fav,
+            chef: Array.isArray(fav.chef) ? fav.chef[0] : fav.chef,
+          }))
+        )
+      }
+
+      // Fetch bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          service_type,
+          event_date,
+          status,
+          chef:chefs(name)
+        `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5)
+
+      if (bookingsError) {
+        console.error("Error fetching bookings:", bookingsError)
+      } else {
+        // Fix: Supabase join returns chef as array, but we want object
+        setBookings(
+          (bookingsData || []).map((b: any) => ({
+            ...b,
+            chef: Array.isArray(b.chef) ? b.chef[0] : b.chef,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push("/")
+  }
+
+  const updateProfile = async (updatedData: Partial<UserProfile>) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        ...updatedData,
+        updated_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.error("Error updating profile:", error)
+        return false
+      }
+
+      setProfile((prev) => (prev ? { ...prev, ...updatedData } : null))
+      return true
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      return false
+    }
+  }
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  const displayName = profile?.full_name || user.email?.split("@")[0] || "User"
+  const joinDate = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "Recently"
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -133,9 +221,9 @@ export default function ProfilePage() {
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-              <AvatarImage src={mockUser.avatar || "/placeholder.svg"} alt={mockUser.name} />
+              <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={displayName} />
               <AvatarFallback className="bg-primary text-white text-xl font-semibold">
-                {mockUser.name
+                {displayName
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
@@ -145,14 +233,14 @@ export default function ProfilePage() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{mockUser.name}</h1>
+                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{displayName}</h1>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      <span>{mockUser.location}</span>
+                      <span>{profile?.location || "Location not set"}</span>
                     </div>
                     <span>•</span>
-                    <span>Member since {mockUser.joinDate}</span>
+                    <span>Member since {joinDate}</span>
                   </div>
                 </div>
 
@@ -167,23 +255,15 @@ export default function ProfilePage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-4">
-                <div className="text-center p-3 bg-gray-50 rounded-xl">
-                  <div className="text-xl sm:text-2xl font-bold text-foreground">{mockUser.totalBookings}</div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="text-xl sm:text-2xl font-bold text-foreground">{bookings.length}</div>
                   <div className="text-xs sm:text-sm text-muted-foreground">Bookings</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-xl">
-                  <div className="text-xl sm:text-2xl font-bold text-foreground">{mockUser.favoriteChefs}</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">Favorites</div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="text-xl sm:text-2xl font-bold text-foreground">{favorites.length}</div>
+                  <div className="text-[12px] sm:text-sm text-muted-foreground">Favorites</div>
                 </div>
-                {/* <div className="text-center p-3 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-center gap-1">
-                    <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-amber-400 text-amber-400" />
-                    <span className="text-xl sm:text-2xl font-bold text-foreground">{mockUser.averageRating}</span>
-                  </div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">Rating</div>
-                </div> */}
-              </div>
             </div>
           </div>
         </div>
@@ -224,36 +304,55 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={mockUser.name} disabled={!isEditing} className="mt-1 rounded-xl" />
+                    <Input
+                      id="name"
+                      value={profile?.full_name || ""}
+                      disabled={!isEditing}
+                      className="mt-1 rounded-xl"
+                      onChange={(e) => setProfile((prev) => (prev ? { ...prev, full_name: e.target.value } : null))}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={mockUser.email} disabled={!isEditing} className="mt-1 rounded-xl" />
+                    <Input id="email" value={user.email || ""} disabled className="mt-1 rounded-xl" />
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" value={mockUser.phone} disabled={!isEditing} className="mt-1 rounded-xl" />
+                    <Input
+                      id="phone"
+                      value={profile?.phone || ""}
+                      disabled={!isEditing}
+                      className="mt-1 rounded-xl"
+                      onChange={(e) => setProfile((prev) => (prev ? { ...prev, phone: e.target.value } : null))}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="location">Location</Label>
-                    <Input id="location" value={mockUser.location} disabled={!isEditing} className="mt-1 rounded-xl" />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="preferences">Cuisine Preferences</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {mockUser.preferences.cuisines.map((cuisine) => (
-                      <Badge key={cuisine} className="bg-primary/10 text-primary border-primary/20 rounded-full">
-                        {cuisine}
-                      </Badge>
-                    ))}
+                    <Input
+                      id="location"
+                      value={profile?.location || ""}
+                      disabled={!isEditing}
+                      className="mt-1 rounded-xl"
+                      onChange={(e) => setProfile((prev) => (prev ? { ...prev, location: e.target.value } : null))}
+                    />
                   </div>
                 </div>
 
                 {isEditing && (
                   <div className="flex gap-3 pt-4">
-                    <Button className="flex-1 bg-primary text-white rounded-xl">Save Changes</Button>
+                    <Button
+                      className="flex-1 bg-primary text-white rounded-xl"
+                      onClick={async () => {
+                        if (profile) {
+                          const success = await updateProfile(profile)
+                          if (success) {
+                            setIsEditing(false)
+                          }
+                        }
+                      }}
+                    >
+                      Save Changes
+                    </Button>
                     <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1 rounded-xl">
                       Cancel
                     </Button>
@@ -265,43 +364,54 @@ export default function ProfilePage() {
 
           {/* Favorites Tab */}
           <TabsContent value="favorites" className="space-y-4">
-            {mockFavoriteChefs.map((chef) => (
-              <motion.div key={chef.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="border-0 shadow-sm rounded-2xl hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
-                        <AvatarImage src={chef.avatar || "/placeholder.svg"} alt={chef.name} />
-                        <AvatarFallback>
-                          <ChefHat className="h-6 w-6" />
-                        </AvatarFallback>
-                      </Avatar>
+            {favorites.length === 0 ? (
+              <Card className="border-0 shadow-sm rounded-2xl">
+                <CardContent className="p-8 text-center">
+                  <Heart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No favorites yet</h3>
+                  <p className="text-muted-foreground">Start exploring chefs to add them to your favorites!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              favorites.map((favorite) => (
+                <motion.div key={favorite.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card className="border-0 shadow-sm rounded-2xl hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
+                          <AvatarImage src={favorite.chef.avatar_url || "/placeholder.svg"} alt={favorite.chef.name} />
+                          <AvatarFallback>
+                            <ChefHat className="h-6 w-6" />
+                          </AvatarFallback>
+                        </Avatar>
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground truncate">{chef.name}</h3>
-                        <p className="text-sm text-muted-foreground">{chef.cuisine} Cuisine</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            <span className="text-sm font-medium">{chef.rating}</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground truncate">{favorite.chef.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {favorite.chef.cuisines?.join(", ") || "Various cuisines"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              <span className="text-sm font-medium">{favorite.chef.rating}</span>
+                            </div>
                           </div>
-                          <span className="text-xs text-muted-foreground">• Last booked {chef.lastBooked}</span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button size="sm" className="bg-primary text-white rounded-xl text-xs sm:text-sm">
+                            Book Now
+                          </Button>
+                          <Button size="sm" variant="outline" className="rounded-xl text-xs sm:text-sm bg-transparent">
+                            <Heart className="h-3 w-3 sm:h-4 sm:w-4 fill-red-500 text-red-500" />
+                          </Button>
                         </div>
                       </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button size="sm" className="bg-primary text-white rounded-xl text-xs sm:text-sm">
-                          Book Again
-                        </Button>
-                        <Button size="sm" variant="outline" className="rounded-xl text-xs sm:text-sm bg-transparent">
-                          <Heart className="h-3 w-3 sm:h-4 sm:w-4 fill-red-500 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))
+            )}
           </TabsContent>
 
           {/* Activity Tab */}
@@ -311,23 +421,40 @@ export default function ProfilePage() {
                 <CardTitle>Recent Bookings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {mockRecentBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground truncate">{booking.service}</h4>
-                      <p className="text-sm text-muted-foreground">with {booking.chef}</p>
-                      <p className="text-xs text-muted-foreground">{booking.date}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        {[...Array(booking.rating)].map((_, i) => (
-                          <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                      <Badge className="bg-green-100 text-green-800 text-xs rounded-full">{booking.status}</Badge>
-                    </div>
+                {bookings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No bookings yet</h3>
+                    <p className="text-muted-foreground">Book your first chef to see your activity here!</p>
                   </div>
-                ))}
+                ) : (
+                  bookings.map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground truncate">
+                          {booking.service_type.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">with {booking.chef.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(booking.event_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge
+                        className={`text-xs rounded-full ${
+                          booking.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : booking.status === "confirmed"
+                              ? "bg-blue-100 text-blue-800"
+                              : booking.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {booking.status}
+                      </Badge>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -342,7 +469,7 @@ export default function ProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(Object.entries(notifications) as [keyof NotificationSettings, boolean][]).map(([key, value]) => (
+                {Object.entries(notifications).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <div>
                       <Label className="font-medium capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</Label>
@@ -355,9 +482,7 @@ export default function ProfilePage() {
                     </div>
                     <Switch
                       checked={value}
-                      onCheckedChange={(checked) =>
-                        setNotifications((prev) => ({ ...prev, [key]: Boolean(checked) }))
-                      }
+                      onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, [key]: checked }))}
                     />
                   </div>
                 ))}
@@ -396,7 +521,10 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-sm rounded-2xl cursor-pointer hover:shadow-md transition-shadow">
+              <Card
+                className="border-0 shadow-sm rounded-2xl cursor-pointer hover:shadow-md transition-shadow"
+                onClick={handleSignOut}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <LogOut className="h-8 w-8 text-red-500" />
                   <div>
@@ -409,6 +537,7 @@ export default function ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+    </div> 
     </div>
   )
 }

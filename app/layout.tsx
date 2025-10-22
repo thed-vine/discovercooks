@@ -1,11 +1,15 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
+import { Plus_Jakarta_Sans } from "next/font/google"
+// import { Analytics } from "@vercel/analytics/next"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { AuthProvider } from "@/lib/auth-context"
 import { Suspense } from "react"
 import "./globals.css"
+
+const plus = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+})
 
 export const metadata: Metadata = {
   title: "DiscoverCooks",
@@ -19,13 +23,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className={plus.className}>
+      <body className="">
+        <AuthProvider>
         <Suspense fallback={<div>Loading...</div>}>
-          <div className="min-h-screen pb-16">{children}</div>
+        <div className="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+          <div className="w-[432px] h-[936px] bg-white rounded-3xl shadow-2xl overflow-hidden relative">{children}</div>
           <BottomNavigation />
+        </div>
         </Suspense>
-        <Analytics />
+        {/* <Analytics /> */}
+        </AuthProvider>
       </body>
     </html>
   )
