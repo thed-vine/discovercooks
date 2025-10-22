@@ -1,158 +1,121 @@
 import { ChefProfile } from "@/components/chef-profile"
 import { notFound } from "next/navigation"
-
-// Mock chef data - in a real app this would come from a database
-const mockChefs = {
-  "1": {
-    id: "1",
-    name: "Marco Rodriguez",
-    avatar: "/chef-portrait.png",
-    coverImage: "/chef-cooking-pasta.png",
-    cuisine: "Italian",
-    rating: 4.9,
-    reviewCount: 247,
-    verified: true,
-    location: "New York, NY",
-    priceRange: "$$$",
-    experience: "15+ years",
-    bio: "Born and raised in Naples, Italy, Chef Marco brings authentic Italian flavors to New York. Trained under Michelin-starred chefs in Rome and Milan, he specializes in handmade pasta and traditional Italian techniques passed down through generations.",
-    specialties: ["Handmade Pasta", "Truffle Dishes", "Wine Pairing", "Traditional Italian"],
-    languages: ["English", "Italian", "Spanish"],
-    certifications: ["Culinary Institute of America", "Italian Culinary Federation"],
-    availability: {
-      nextAvailable: "Tomorrow",
-      weeklySlots: 12,
-      responseTime: "Within 2 hours",
-    },
-    pricing: {
-      dinnerParty: 150,
-      cookingClass: 75,
-      mealPrep: 45,
-    },
-    videos: [
-      {
-        id: "1",
-        title: "Homemade Truffle Pasta",
-        thumbnail: "/chef-cooking-pasta.png",
-        duration: 45,
-        likes: 1240,
-        views: 15600,
-      },
-      {
-        id: "2",
-        title: "Perfect Risotto Technique",
-        thumbnail: "/chef-cooking-pasta.png",
-        duration: 38,
-        likes: 892,
-        views: 12300,
-      },
-      {
-        id: "3",
-        title: "Italian Wine Pairing",
-        thumbnail: "/chef-cooking-pasta.png",
-        duration: 25,
-        likes: 567,
-        views: 8900,
-      },
-      {
-        id: "4",
-        title: "Fresh Mozzarella Making",
-        thumbnail: "/chef-cooking-pasta.png",
-        duration: 52,
-        likes: 1456,
-        views: 18700,
-      },
-    ],
-    reviews: [
-      {
-        id: "1",
-        user: "Sarah M.",
-        avatar: "/chef-portrait.png",
-        rating: 5,
-        date: "2 days ago",
-        comment:
-          "Marco created an incredible Italian feast for our anniversary dinner. The truffle pasta was absolutely divine!",
-      },
-      {
-        id: "2",
-        user: "James L.",
-        avatar: "/japanese-chef-portrait.png",
-        rating: 5,
-        date: "1 week ago",
-        comment:
-          "Best cooking class I've ever taken. Marco's passion for Italian cuisine is infectious and his techniques are flawless.",
-      },
-      {
-        id: "3",
-        user: "Emily R.",
-        avatar: "/french-chef-portrait.png",
-        rating: 4,
-        date: "2 weeks ago",
-        comment: "Amazing meal prep service. Marco's dishes kept us eating well all week. Highly recommend!",
-      },
-    ],
-  },
-  "2": {
-    id: "2",
-    name: "Sakura Tanaka",
-    avatar: "/japanese-chef-portrait.png",
-    coverImage: "/sushi-preparation.png",
-    cuisine: "Japanese",
-    rating: 4.8,
-    reviewCount: 189,
-    verified: true,
-    location: "Los Angeles, CA",
-    priceRange: "$$$$",
-    experience: "12+ years",
-    bio: "Master sushi chef trained in Tokyo's prestigious Tsukiji market. Sakura combines traditional Japanese techniques with California's fresh ingredients to create unforgettable omakase experiences.",
-    specialties: ["Sushi & Sashimi", "Omakase", "Japanese Kaiseki", "Sake Pairing"],
-    languages: ["English", "Japanese"],
-    certifications: ["Tokyo Sushi Academy", "Japan Culinary Institute"],
-    availability: {
-      nextAvailable: "This weekend",
-      weeklySlots: 8,
-      responseTime: "Within 4 hours",
-    },
-    pricing: {
-      dinnerParty: 200,
-      cookingClass: 95,
-      mealPrep: 65,
-    },
-    videos: [
-      {
-        id: "1",
-        title: "Perfect Sushi Technique",
-        thumbnail: "/sushi-preparation.png",
-        duration: 60,
-        likes: 892,
-        views: 23400,
-      },
-    ],
-    reviews: [
-      {
-        id: "1",
-        user: "Michael K.",
-        avatar: "/chef-portrait.png",
-        rating: 5,
-        date: "3 days ago",
-        comment: "Sakura's omakase experience was transcendent. Every piece of sushi was perfection.",
-      },
-    ],
-  },
-}
+import { createClient } from "@/lib/supabase/server"
 
 interface ChefPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
-export default function ChefPage({ params }: ChefPageProps) {
-  const chef = mockChefs[params.id as keyof typeof mockChefs]
+export default async function ChefPage({ params }: ChefPageProps) {
+  const { id } = await params
+  const supabase = await createClient()
 
-  if (!chef) {
+  // Fetch chef data with related videos and reviews
+  const { data: chef, error } = await supabase
+    .from("chefs")
+    .select(`
+      id,
+      name,
+      bio,
+      avatar_url,
+      cover_image_url,
+      location,
+      phone,
+      email,
+      specialties,
+      cuisines,
+      price_per_hour,
+      rating,
+      total_reviews,
+      years_experience,
+      is_verified,
+      is_available,
+      videos:videos(
+        id,
+        title,
+        thumbnail_url,
+        duration,
+        likes_count,
+        views_count
+      )
+    `)
+    .eq("id", id)
+    .single()
+
+  if (error || !chef) {
     notFound()
   }
 
-  return <ChefProfile chef={chef} />
+  // Fetch reviews for this chef
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select(`
+      id,
+      rating,
+      comment,
+      created_at,
+      user_id,
+      profiles:user_id(
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq("chef_id", id)
+    .order("created_at", { ascending: false })
+    .limit(10)
+
+  // Transform data to match component interface
+  const transformedChef = {
+    id: chef.id,
+    name: chef.name,
+    avatar: chef.avatar_url || "/placeholder.svg",
+    coverImage: chef.cover_image_url || "/chef-cooking.png",
+    cuisine: chef.cuisines?.[0] || "Various",
+    rating: chef.rating || 0,
+    reviewCount: chef.total_reviews || 0,
+    verified: chef.is_verified,
+    location: chef.location || "Location not specified",
+    priceRange:
+      chef.price_per_hour >= 100 ? "$$$$" : chef.price_per_hour >= 75 ? "$$$" : chef.price_per_hour >= 50 ? "$$" : "$",
+    experience: `${chef.years_experience || 0}+ years`,
+    bio: chef.bio || "No bio available",
+    specialties: chef.specialties || [],
+    languages: ["English"], // Default for now
+    certifications: ["Professional Chef"], // Default for now
+    availability: {
+      nextAvailable: chef.is_available ? "Available" : "Unavailable",
+      weeklySlots: Math.floor(Math.random() * 15) + 5, // Mock data for now
+      responseTime: "Within 4 hours",
+    },
+    pricing: {
+      dinnerParty: chef.price_per_hour * 2,
+      cookingClass: chef.price_per_hour,
+      mealPrep: Math.floor(chef.price_per_hour * 0.6),
+    },
+    videos:
+      chef.videos?.map((video: any) => ({
+        id: video.id,
+        title: video.title,
+        thumbnail: video.thumbnail_url || "/cooking-video-scene.png",
+        duration: video.duration || 60,
+        likes: video.likes_count || 0,
+        views: video.views_count || 0,
+      })) || [],
+    reviews:
+      reviews?.map((review: any) => ({
+        id: review.id,
+        user: review.profiles?.full_name || "Anonymous User",
+        avatar: review.profiles?.avatar_url || "/placeholder.svg",
+        rating: review.rating,
+        date: new Date(review.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
+        comment: review.comment || "",
+      })) || [],
+  }
+
+  return <ChefProfile chef={transformedChef} />
 }

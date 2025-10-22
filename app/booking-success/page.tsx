@@ -2,21 +2,115 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Check, Calendar, Home } from "lucide-react"
+import { Check, Calendar, Home, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
 import { useRouter, useSearchParams } from "next/navigation"
+
+interface BookingData {
+  id: string
+  service_type: string
+  event_date: string
+  event_time: string
+  guest_count: number
+  total_price: number
+  chef: {
+    name: string
+  }
+}
 
 export default function BookingSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const bookingId = searchParams.get("bookingId")
   const chefId = searchParams.get("chef")
   const [showConfetti, setShowConfetti] = useState(true)
+  const [booking, setBooking] = useState<BookingData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 3000)
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    const fetchBooking = async () => {
+      if (!bookingId) {
+        setError("No booking ID provided")
+        setLoading(false)
+        return
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select(`
+            id,
+            service_type,
+            event_date,
+            event_time,
+            guest_count,
+            total_price,
+            chef:chefs(name)
+          `)
+          .eq("id", bookingId)
+          .single()
+
+        if (error) {
+          console.error("Error fetching booking:", error)
+          setError("Failed to load booking details")
+        } else {
+          // Fix: Supabase returns chef as an array, but we expect an object
+          setBooking({
+            ...data,
+            chef: Array.isArray(data.chef) ? data.chef[0] : data.chef,
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching booking:", error)
+        setError("An unexpected error occurred")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBooking()
+  }, [bookingId])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error || !booking) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Booking Not Found</h2>
+            <p className="text-muted-foreground mb-4">{error || "We couldn't find your booking details."}</p>
+            <Button onClick={() => router.push("/")} className="w-full">
+              <Home className="h-4 w-4 mr-2" />
+              Back to Feed
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const formatServiceType = (serviceType: string) => {
+    return serviceType
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -50,9 +144,41 @@ export default function BookingSuccessPage() {
           <CardContent>
             <div className="text-center">
               <div className="text-2xl font-mono font-bold text-primary mb-2">
-                #CHF{Math.random().toString(36).substr(2, 6).toUpperCase()}
+                #{booking.id.slice(-8).toUpperCase()}
               </div>
               <p className="text-sm text-muted-foreground">Save this reference number for your records</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Chef:</span>
+              <span className="font-medium">{booking.chef.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Service:</span>
+              <span className="font-medium">{formatServiceType(booking.service_type)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Date:</span>
+              <span className="font-medium">{new Date(booking.event_date).toLocaleDateString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Time:</span>
+              <span className="font-medium">{booking.event_time}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Guests:</span>
+              <span className="font-medium">{booking.guest_count}</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-border">
+              <span className="font-medium">Total:</span>
+              <span className="font-bold text-primary">${booking.total_price}</span>
             </div>
           </CardContent>
         </Card>

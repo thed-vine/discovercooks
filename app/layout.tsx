@@ -1,12 +1,13 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Montserrat } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 // import { Analytics } from "@vercel/analytics/next"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { AuthProvider } from "@/lib/auth-context"
 import { Suspense } from "react"
 import "./globals.css"
 
-const montserrat = Montserrat({
+const plus = Plus_Jakarta_Sans({
   subsets: ["latin"],
 })
 
@@ -22,8 +23,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={montserrat.className}>
+    <html lang="en" className={plus.className}>
       <body className="">
+        <AuthProvider>
         <Suspense fallback={<div>Loading...</div>}>
         <div className="bg-gray-100 min-h-screen flex items-center justify-center p-4">
           <div className="w-[432px] h-[936px] bg-white rounded-3xl shadow-2xl overflow-hidden relative">{children}</div>
@@ -31,6 +33,7 @@ export default function RootLayout({
         </div>
         </Suspense>
         {/* <Analytics /> */}
+        </AuthProvider>
       </body>
     </html>
   )

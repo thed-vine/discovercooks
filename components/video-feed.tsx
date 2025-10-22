@@ -1,210 +1,157 @@
-// components/video-feed.tsx
 "use client"
 
-import type React from "react"
-
+import React from "react"
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { VideoCard } from "./video-card"
+import { createClient } from "@/lib/supabase/client"
+import { Loader2 } from "lucide-react"
 
-const mockVideos = [
-  {
-    id: "1",
-    chef: {
-      id: "1",
-      name: "Marco Rodriguez",
-      avatar: "/chef-portrait.png",
-      cuisine: "Italian",
-      rating: 4.9,
-      verified: true,
-      location: "New York, NY",
-      priceRange: "$$$",
-    },
-    videoUrl: "/cookingvideo1.mp4",
-    title: "Homemade Truffle Pasta",
-    description: "Learn the secrets of authentic Italian truffle pasta with fresh ingredients",
-    likes: 1240,
-    comments: 89,
-    shares: 45,
-    duration: 45,
-    tags: ["Italian", "Pasta", "Truffle"],
-    isBookmarked: false,
-  },
-  {
-    id: "2",
-    chef: {
-      id: "2",
-      name: "Sakura Tanaka",
-      avatar: "/japanese-chef-portrait.png",
-      cuisine: "Japanese",
-      rating: 4.8,
-      verified: true,
-      location: "Los Angeles, CA",
-      priceRange: "$$$$",
-    },
-    videoUrl: "/cookingvideo2.mp4",
-    title: "Perfect Sushi Technique",
-    description: "Master the art of sushi making with traditional Japanese methods",
-    likes: 892,
-    comments: 156,
-    shares: 78,
-    duration: 60,
-    tags: ["Japanese", "Sushi", "Traditional"],
-    isBookmarked: true,
-  },
-  {
-    id: "3",
-    chef: {
-      id: "3",
-      name: "Antoine Dubois",
-      avatar: "/french-chef-portrait.png",
-      cuisine: "French",
-      rating: 4.9,
-      verified: true,
-      location: "San Francisco, CA",
-      priceRange: "$$$$",
-    },
-    videoUrl: "/cookingvideo3.mp4",
-    title: "Classic French Croissants",
-    description: "The perfect flaky croissant technique revealed by a Michelin-starred chef",
-    likes: 2156,
-    comments: 234,
-    shares: 123,
-    duration: 90,
-    tags: ["French", "Pastry", "Breakfast"],
-    isBookmarked: false,
-  },
-  {
-    id: "4",
-    chef: {
-      id: "4",
-      name: "Maria Gonzalez",
-      avatar: "/chef-portrait.png",
-      cuisine: "Mexican",
-      rating: 4.7,
-      verified: true,
-      location: "Austin, TX",
-      priceRange: "$$",
-    },
-    videoUrl: "/cookingvideo4.mp4",
-    title: "Authentic Mole Poblano",
-    description: "Traditional Mexican mole with 20+ ingredients, passed down through generations",
-    likes: 1567,
-    comments: 198,
-    shares: 89,
-    duration: 120,
-    tags: ["Mexican", "Traditional", "Mole"],
-    isBookmarked: false,
-  },
-  {
-    id: "5",
-    chef: {
-      id: "5",
-      name: "David Kim",
-      avatar: "/japanese-chef-portrait.png",
-      cuisine: "Korean",
-      rating: 4.8,
-      verified: true,
-      location: "Seattle, WA",
-      priceRange: "$$$",
-    },
-    videoUrl: "/cookingvideo5.mp4",
-    title: "Korean BBQ Masterclass",
-    description: "Perfect galbi and banchan preparation for an authentic Korean feast",
-    likes: 934,
-    comments: 112,
-    shares: 67,
-    duration: 75,
-    tags: ["Korean", "BBQ", "Galbi"],
-    isBookmarked: true,
-  },
-  {
-    id: "6",
-    chef: {
-      id: "6",
-      name: "Isabella Chen",
-      avatar: "/french-chef-portrait.png",
-      cuisine: "Fusion",
-      rating: 4.9,
-      verified: true,
-      location: "Miami, FL",
-      priceRange: "$$$",
-    },
-    videoUrl: "/cookingvideo6.mp4",
-    title: "Asian-French Fusion",
-    description: "Innovative fusion cuisine blending Asian flavors with French techniques",
-    likes: 1876,
-    comments: 267,
-    shares: 134,
-    duration: 85,
-    tags: ["Fusion", "Asian", "French"],
-    isBookmarked: false,
-  },
-  {
-    id: "7",
-    chef: {
-      id: "7",
-      name: "Ahmed Hassan",
-      avatar: "/chef-portrait.png",
-      cuisine: "Middle Eastern",
-      rating: 4.8,
-      verified: true,
-      location: "Chicago, IL",
-      priceRange: "$$",
-    },
-    videoUrl: "/cookingvideo7.mp4",
-    title: "Perfect Shawarma",
-    description: "Traditional Middle Eastern shawarma with homemade spices and sauces",
-    likes: 1345,
-    comments: 178,
-    shares: 92,
-    duration: 65,
-    tags: ["Middle Eastern", "Shawarma", "Traditional"],
-    isBookmarked: true,
-  },
-  {
-    id: "8",
-    chef: {
-      id: "8",
-      name: "Elena Rossi",
-      avatar: "/japanese-chef-portrait.png",
-      cuisine: "Mediterranean",
-      rating: 4.7,
-      verified: true,
-      location: "Portland, OR",
-      priceRange: "$$$",
-    },
-    videoUrl: "/cookingvideo8.mp4",
-    title: "Fresh Mediterranean Bowl",
-    description: "Healthy Mediterranean cuisine with fresh herbs and olive oil",
-    likes: 987,
-    comments: 145,
-    shares: 73,
-    duration: 55,
-    tags: ["Mediterranean", "Healthy", "Fresh"],
-    isBookmarked: false,
-  },
-]
+interface Chef {
+  id: string
+  name: string
+  avatar_url: string | null
+  cuisines: string[]
+  rating: number
+  is_verified: boolean
+  location: string | null
+  price_per_hour: number
+}
+
+interface Video {
+  id: string
+  title: string
+  description: string | null
+  video_url: string
+  videoUrl: string
+  thumbnail_url: string | null
+  duration: number | null
+  tags: string[]
+  likes_count: number
+  likes: number
+  comments?: number
+  shares?: number
+  isBookmarked?: boolean
+  views_count: number
+  chef: Chef
+}
 
 export function VideoFeed() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
-  const [videos, setVideos] = useState(mockVideos)
+  const [videos, setVideos] = useState<Video[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef(0)
   const touchEndY = useRef(0)
+  const supabase = createClient()
+
+  const fetchVideos = async (offset = 0, limit = 10): Promise<Video[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("videos")
+        .select(`
+          id,
+          title,
+          description,
+          video_url,
+          thumbnail_url,
+          duration,
+          tags,
+          likes_count,
+          views_count,
+          comments_count,
+          shares_count,
+          chef:chefs(
+            id,
+            name,
+            avatar_url,
+            cuisines,
+            rating,
+            is_verified,
+            location,
+            price_per_hour
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (error) {
+        console.error("Supabase error fetching videos:", error)
+        setError("Failed to load videos")
+        return []
+      }
+
+      if (!data || data.length === 0) return []
+
+      // Normalize rows: Supabase join returns chef as array; convert to object and map snake_case to expected fields.
+      const normalized: Video[] = (data as any[]).map((v: any) => {
+        const chefRaw = Array.isArray(v.chef) ? v.chef[0] : v.chef
+        const chef: Chef = {
+          id: chefRaw?.id ?? "",
+          name: chefRaw?.name ?? "",
+          avatar_url: chefRaw?.avatar_url ?? null,
+          cuisines: chefRaw?.cuisines ?? [],
+          rating: chefRaw?.rating ?? 0,
+          is_verified: !!chefRaw?.is_verified,
+          location: chefRaw?.location ?? null,
+          price_per_hour: chefRaw?.price_per_hour ?? 0,
+        }
+
+        return {
+          id: v.id,
+          title: v.title,
+          description: v.description ?? null,
+          video_url: v.video_url ?? v.videoUrl ?? "",
+          videoUrl: v.video_url ?? v.videoUrl ?? "",
+          thumbnail_url: v.thumbnail_url ?? null,
+          duration: v.duration ?? null,
+          tags: v.tags ?? [],
+          likes_count: v.likes_count ?? 0,
+          likes: v.likes_count ?? 0,
+          comments: v.comments_count ?? 0,
+          shares: v.shares_count ?? 0,
+          isBookmarked: false,
+          views_count: v.views_count ?? 0,
+          chef,
+        } as Video
+      })
+
+      return normalized
+    } catch (err) {
+      console.error("Error fetching videos:", err)
+      setError("Failed to load videos")
+      return []
+    }
+  }
+
+  useEffect(() => {
+    const loadInitialVideos = async () => {
+      setLoading(true)
+      const initialVideos = await fetchVideos(0, 10)
+      setVideos(initialVideos)
+      setLoading(false)
+    }
+
+    loadInitialVideos()
+  }, [])
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY
+    touchStartY.current = e.touches[0]?.clientY ?? 0
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndY.current = e.touches[0].clientY
+    touchEndY.current = e.touches[0]?.clientY ?? 0
   }
 
   const handleTouchEnd = () => {
-    if (!touchStartY.current || !touchEndY.current) return
+    if (!touchStartY.current || !touchEndY.current) {
+      touchStartY.current = 0
+      touchEndY.current = 0
+      return
+    }
 
     const distance = touchStartY.current - touchEndY.current
     const isSignificantSwipe = Math.abs(distance) > 50
@@ -226,16 +173,23 @@ export function VideoFeed() {
     touchEndY.current = 0
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setDirection(1)
     setCurrentIndex((prev) => {
       const nextIndex = prev + 1
+      // Load more videos when approaching the end
       if (nextIndex >= videos.length - 2) {
-        const shuffledVideos = [...mockVideos].sort(() => Math.random() - 0.5)
-        setVideos((prevVideos) => [...prevVideos, ...shuffledVideos])
+        loadMoreVideos()
       }
       return nextIndex
     })
+  }
+
+  const loadMoreVideos = async () => {
+    const moreVideos = await fetchVideos(videos.length, 10)
+    if (moreVideos.length > 0) {
+      setVideos((prevVideos) => [...prevVideos, ...moreVideos])
+    }
   }
 
   const handlePrevious = () => {
@@ -245,7 +199,6 @@ export function VideoFeed() {
     }
   }
 
-  // Add keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowUp" && !isScrolling) {
@@ -254,38 +207,12 @@ export function VideoFeed() {
       } else if (e.key === "ArrowDown" && !isScrolling) {
         e.preventDefault()
         handleNext()
-      } else if (e.key === " " || e.key === "Spacebar") {
-        e.preventDefault()
-        // Space bar to toggle play/pause could be added here
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [currentIndex, isScrolling])
-
-  // Add intersection observer for auto-play when videos come into view
-  useEffect(() => {
-    const options = {
-      root: containerRef.current,
-      rootMargin: '0px',
-      threshold: 0.8 // 80% of video must be visible
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          // You could add logic here to auto-play videos as they come into view
-          // if you want to implement a multi-video feed
-        }
-      })
-    }, options)
-
-    // If you have multiple video elements, you would observe them here
-    // For now, we're handling play/pause through the isActive prop
-
-    return () => observer.disconnect()
-  }, [])
+  }, [isScrolling, videos.length])
 
   const slideVariants = {
     enter: (direction: number) => ({
@@ -302,11 +229,30 @@ export function VideoFeed() {
     }),
   }
 
+  if (loading) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    )
+  }
+
+  if (error || videos.length === 0) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center text-white text-center p-4">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">No videos available</h2>
+          <p className="text-gray-400">Check back later for new chef content!</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       ref={containerRef}
       className="fixed inset-0 h-screen w-screen overflow-hidden bg-black touch-none"
-      style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}
+      style={{ maxHeight: "100dvh", minHeight: "100dvh", height: "100dvh" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -326,11 +272,11 @@ export function VideoFeed() {
           className="absolute inset-0"
         >
           <VideoCard
-            video={videos[currentIndex]}
+            video={videos[currentIndex] as any}
             isActive={true}
             onNext={handleNext}
             onPrevious={handlePrevious}
-            canGoNext={true}
+            canGoNext={currentIndex < videos.length - 1}
             canGoPrevious={currentIndex > 0}
           />
         </motion.div>
@@ -345,7 +291,7 @@ export function VideoFeed() {
         >
           <div className="bg-black/50 text-white px-4 py-2 rounded-full text-sm">Swipe up for next chef</div>
         </motion.div>
-      )} 
+      )}
     </div>
   )
 }

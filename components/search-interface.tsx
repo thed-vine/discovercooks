@@ -13,132 +13,34 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
+import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
-// Mock chef data for search
-const mockChefs = [
-  {
-    id: "1",
-    name: "Marco Rodriguez",
-    avatar: "/chef-portrait.png",
-    coverImage: "/chef-cooking-pasta.png",
-    cuisine: "Italian",
-    rating: 4.9,
-    reviewCount: 247,
-    verified: true,
-    location: "New York, NY",
-    city: "New York",
-    state: "NY",
-    priceRange: "$$$",
-    priceValue: 150,
-    experience: "15+ years",
-    specialties: ["Handmade Pasta", "Truffle Dishes", "Wine Pairing"],
-    availability: "Available today",
-    responseTime: "2 hours",
-    tags: ["Italian", "Pasta", "Fine Dining", "Wine Expert"],
-  },
-  {
-    id: "2",
-    name: "Sakura Tanaka",
-    avatar: "/japanese-chef-portrait.png",
-    coverImage: "/sushi-preparation.png",
-    cuisine: "Japanese",
-    rating: 4.8,
-    reviewCount: 189,
-    verified: true,
-    location: "Los Angeles, CA",
-    city: "Los Angeles",
-    state: "CA",
-    priceRange: "$$$$",
-    priceValue: 200,
-    experience: "12+ years",
-    specialties: ["Sushi & Sashimi", "Omakase", "Kaiseki"],
-    availability: "Available this weekend",
-    responseTime: "4 hours",
-    tags: ["Japanese", "Sushi", "Traditional", "Omakase"],
-  },
-  {
-    id: "3",
-    name: "Antoine Dubois",
-    avatar: "/french-chef-portrait.png",
-    coverImage: "/french-pastry-making.png",
-    cuisine: "French",
-    rating: 4.9,
-    reviewCount: 312,
-    verified: true,
-    location: "San Francisco, CA",
-    city: "San Francisco",
-    state: "CA",
-    priceRange: "$$$$",
-    priceValue: 180,
-    experience: "18+ years",
-    specialties: ["French Pastry", "Fine Dining", "Michelin Techniques"],
-    availability: "Available tomorrow",
-    responseTime: "1 hour",
-    tags: ["French", "Pastry", "Fine Dining", "Michelin"],
-  },
-  {
-    id: "4",
-    name: "Maria Gonzalez",
-    avatar: "/chef-portrait.png",
-    coverImage: "/chef-cooking-pasta.png",
-    cuisine: "Mexican",
-    rating: 4.7,
-    reviewCount: 156,
-    verified: true,
-    location: "Austin, TX",
-    city: "Austin",
-    state: "TX",
-    priceRange: "$$",
-    priceValue: 85,
-    experience: "10+ years",
-    specialties: ["Traditional Mexican", "Mole", "Street Food"],
-    availability: "Available next week",
-    responseTime: "3 hours",
-    tags: ["Mexican", "Traditional", "Authentic", "Spicy"],
-  },
-  {
-    id: "5",
-    name: "David Kim",
-    avatar: "/japanese-chef-portrait.png",
-    coverImage: "/sushi-preparation.png",
-    cuisine: "Korean",
-    rating: 4.8,
-    reviewCount: 203,
-    verified: true,
-    location: "Seattle, WA",
-    city: "Seattle",
-    state: "WA",
-    priceRange: "$$$",
-    priceValue: 120,
-    experience: "14+ years",
-    specialties: ["Korean BBQ", "Banchan", "Fermentation"],
-    availability: "Available today",
-    responseTime: "2 hours",
-    tags: ["Korean", "BBQ", "Fermented", "Authentic"],
-  },
-  {
-    id: "6",
-    name: "Isabella Romano",
-    avatar: "/french-chef-portrait.png",
-    coverImage: "/french-pastry-making.png",
-    cuisine: "Mediterranean",
-    rating: 4.6,
-    reviewCount: 134,
-    verified: false,
-    location: "Miami, FL",
-    city: "Miami",
-    state: "FL",
-    priceRange: "$$",
-    priceValue: 95,
-    experience: "8+ years",
-    specialties: ["Mediterranean", "Seafood", "Healthy Cuisine"],
-    availability: "Available this weekend",
-    responseTime: "5 hours",
-    tags: ["Mediterranean", "Seafood", "Healthy", "Fresh"],
-  },
-]
+interface Chef {
+  id: string
+  name: string
+  avatar_url: string | null
+  cover_image_url: string | null
+  cuisines: string[]
+  rating: number
+  total_reviews: number
+  is_verified: boolean
+  location: string | null
+  price_per_hour: number
+  years_experience: number | null
+  specialties: string[]
+  is_available: boolean
+}
+
+interface Filters {
+  cuisines: string[]
+  priceRange: [number, number]
+  rating: number
+  location: string
+  availability: string
+  verified: boolean
+}
 
 const cuisineTypes = [
   "Italian",
@@ -151,22 +53,9 @@ const cuisineTypes = [
   "Indian",
   "Thai",
   "Chinese",
+  "Middle Eastern",
+  "Fusion",
 ]
-const priceRanges = [
-  { label: "$", value: "budget", min: 0, max: 75 },
-  { label: "$$", value: "moderate", min: 75, max: 125 },
-  { label: "$$$", value: "expensive", min: 125, max: 175 },
-  { label: "$$$$", value: "luxury", min: 175, max: 300 },
-]
-
-interface Filters {
-  cuisines: string[]
-  priceRange: [number, number]
-  rating: number
-  location: string
-  availability: string
-  verified: boolean
-}
 
 export function SearchInterface() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -181,23 +70,67 @@ export function SearchInterface() {
   const [showFilters, setShowFilters] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [chefs, setChefs] = useState<Chef[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Generate search suggestions
-  const allSuggestions = useMemo(() => {
-    const chefNames = mockChefs.map((chef) => chef.name)
-    const cuisines = [...new Set(mockChefs.map((chef) => chef.cuisine))]
-    const cities = [...new Set(mockChefs.map((chef) => chef.city))]
-    const specialties = [...new Set(mockChefs.flatMap((chef) => chef.specialties))]
-    const tags = [...new Set(mockChefs.flatMap((chef) => chef.tags))]
+  const supabase = createClient()
 
-    return [...chefNames, ...cuisines, ...cities, ...specialties, ...tags]
+  useEffect(() => {
+    const fetchChefs = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from("chefs")
+          .select(`
+            id,
+            name,
+            avatar_url,
+            cover_image_url,
+            cuisines,
+            rating,
+            total_reviews,
+            is_verified,
+            location,
+            price_per_hour,
+            years_experience,
+            specialties,
+            is_available
+          `)
+          .order("rating", { ascending: false })
+
+        if (error) {
+          console.error("Error fetching chefs:", error)
+          setError("Failed to load chefs")
+        } else {
+          setChefs(data || [])
+        }
+      } catch (error) {
+        console.error("Error fetching chefs:", error)
+        setError("Failed to load chefs")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchChefs()
   }, [])
+
+  // Generate search suggestions from real data
+  const allSuggestions = useMemo(() => {
+    const chefNames = chefs.map((chef) => chef.name)
+    const cuisines = [...new Set(chefs.flatMap((chef) => chef.cuisines || []))]
+    const locations = [...new Set(chefs.map((chef) => chef.location).filter(Boolean))]
+    const specialties = [...new Set(chefs.flatMap((chef) => chef.specialties || []))]
+
+    return [...chefNames, ...cuisines, ...locations, ...specialties]
+  }, [chefs])
 
   // Update suggestions based on search query
   useEffect(() => {
     if (searchQuery.length > 0) {
       const filtered = allSuggestions
-        .filter((suggestion) => suggestion.toLowerCase().includes(searchQuery.toLowerCase()))
+        .filter((suggestion): suggestion is string => !!suggestion && suggestion.toLowerCase().includes(searchQuery.toLowerCase()))
         .slice(0, 6)
       setSuggestions(filtered)
       setShowSuggestions(true)
@@ -209,35 +142,35 @@ export function SearchInterface() {
 
   // Filter chefs based on search and filters
   const filteredChefs = useMemo(() => {
-    return mockChefs.filter((chef) => {
+    return chefs.filter((chef) => {
       // Text search
       const matchesSearch =
         searchQuery === "" ||
         chef.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chef.cuisine.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chef.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chef.specialties.some((specialty) => specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        chef.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        chef.cuisines?.some((cuisine) => cuisine.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        chef.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        chef.specialties?.some((specialty) => specialty.toLowerCase().includes(searchQuery.toLowerCase()))
 
       // Cuisine filter
-      const matchesCuisine = filters.cuisines.length === 0 || filters.cuisines.includes(chef.cuisine)
+      const matchesCuisine =
+        filters.cuisines.length === 0 || chef.cuisines?.some((cuisine) => filters.cuisines.includes(cuisine))
 
       // Price range filter
-      const matchesPrice = chef.priceValue >= filters.priceRange[0] && chef.priceValue <= filters.priceRange[1]
+      const matchesPrice = chef.price_per_hour >= filters.priceRange[0] && chef.price_per_hour <= filters.priceRange[1]
 
       // Rating filter
       const matchesRating = chef.rating >= filters.rating
 
       // Location filter
       const matchesLocation =
-        filters.location === "" || chef.location.toLowerCase().includes(filters.location.toLowerCase())
+        filters.location === "" || chef.location?.toLowerCase().includes(filters.location.toLowerCase())
 
       // Verified filter
-      const matchesVerified = !filters.verified || chef.verified
+      const matchesVerified = !filters.verified || chef.is_verified
 
       return matchesSearch && matchesCuisine && matchesPrice && matchesRating && matchesLocation && matchesVerified
     })
-  }, [searchQuery, filters])
+  }, [searchQuery, filters, chefs])
 
   const handleCuisineToggle = (cuisine: string) => {
     setFilters((prev) => ({
@@ -266,8 +199,30 @@ export function SearchInterface() {
     (filters.location ? 1 : 0) +
     (filters.verified ? 1 : 0)
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ChefHat className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading chefs...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ChefHat className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-  <div className="fixed inset-0 h-screen w-screen bg-gray-50 pb-16 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
+    <div className="fixed inset-0 h-screen w-screen bg-gray-50 pb-16 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
       {/* Search Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="p-4 space-y-4">
@@ -487,7 +442,7 @@ export function SearchInterface() {
       </div>
 
       {/* Results */}
-  <div className="p-4 h-[calc(100dvh-112px)] overflow-y-auto" style={{ maxHeight: '66vh' }}>
+      <div className="p-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">
             {filteredChefs.length} chef{filteredChefs.length !== 1 ? "s" : ""} found
@@ -507,127 +462,144 @@ export function SearchInterface() {
         {/* Chef Results */}
         <div className="space-y-4">
           <AnimatePresence>
-            {filteredChefs.map((chef, index) => (
-              <motion.div
-                key={chef.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link href={`/chef/${chef.id}`}>
-                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer bg-white border-0 shadow-sm rounded-2xl overflow-hidden">
-                    <CardContent className="p-0">
-                      {/* Cover Image Section */}
-                      <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/10 to-primary/5">
-                        <img
-                          src={chef.coverImage || "/placeholder.svg?height=128&width=400&query=chef cooking"}
-                          alt={`${chef.name} cooking`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-white/80 hover:bg-white rounded-full"
-                          >
-                            <Heart className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
-                          </Button>
+            {filteredChefs.map((chef, index) => {
+              const priceRange =
+                chef.price_per_hour >= 150
+                  ? "$$$$"
+                  : chef.price_per_hour >= 100
+                    ? "$$$"
+                    : chef.price_per_hour >= 75
+                      ? "$$"
+                      : "$"
+
+              return (
+                <motion.div
+                  key={chef.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Link href={`/chef/${chef.id}`}>
+                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer bg-white border-0 shadow-sm rounded-2xl overflow-hidden">
+                      <CardContent className="p-0">
+                        {/* Cover Image Section */}
+                        <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/10 to-primary/5">
+                          <img
+                            src={chef.cover_image_url || "/placeholder.svg?height=128&width=400&query=chef cooking"}
+                            alt={`${chef.name} cooking`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-white/80 hover:bg-white rounded-full"
+                            >
+                              <Heart className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="p-3 sm:p-4">
-                        <div className="flex gap-3 sm:gap-4">
-                          {/* Chef Avatar */}
-                          <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0 border-4 border-white -mt-6 sm:-mt-8 relative z-10 shadow-sm">
-                            <AvatarImage src={chef.avatar || "/placeholder.svg"} alt={chef.name} />
-                            <AvatarFallback className="bg-primary text-white font-semibold text-sm sm:text-base">
-                              {chef.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
+                        <div className="p-3 sm:p-4">
+                          <div className="flex gap-3 sm:gap-4">
+                            {/* Chef Avatar */}
+                            <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0 border-4 border-white -mt-6 sm:-mt-8 relative z-10 shadow-sm">
+                              <AvatarImage src={chef.avatar_url || "/placeholder.svg"} alt={chef.name} />
+                              <AvatarFallback className="bg-primary text-white font-semibold text-sm sm:text-base">
+                                {chef.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
 
-                          {/* Chef Info */}
-                          <div className="flex-1 min-w-0 pt-1 sm:pt-2">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">{chef.name}</h3>
-                                  {chef.verified && (
-                                    <Badge className="bg-green-100 text-green-800 text-xs px-1.5 sm:px-2 py-0.5 rounded-full border-0 flex-shrink-0">
-                                      ✓
+                            {/* Chef Info */}
+                            <div className="flex-1 min-w-0 pt-1 sm:pt-2">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">
+                                      {chef.name}
+                                    </h3>
+                                    {chef.is_verified && (
+                                      <Badge className="bg-green-100 text-green-800 text-xs px-1.5 sm:px-2 py-0.5 rounded-full border-0 flex-shrink-0">
+                                        ✓
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">
+                                    {chef.cuisines?.join(", ") || "Various"} • {chef.years_experience || 0}+ years
+                                  </p>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-2">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-amber-400 text-amber-400" />
+                                    <span className="font-bold text-gray-900 text-sm sm:text-base">{chef.rating}</span>
+                                    <span className="text-gray-500 text-xs sm:text-sm">({chef.total_reviews})</span>
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs font-semibold border-gray-200 text-gray-700"
+                                  >
+                                    {priceRange}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              {/* Specialties */}
+                              <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3">
+                                {chef.specialties
+                                  ?.slice(0, typeof window !== "undefined" && window.innerWidth < 640 ? 2 : 3)
+                                  .map((specialty) => (
+                                    <Badge
+                                      key={specialty}
+                                      className="text-xs bg-gray-100 text-gray-700 border-0 rounded-full px-2 py-1"
+                                    >
+                                      {specialty}
                                     </Badge>
-                                  )}
-                                </div>
-                                <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">
-                                  {chef.cuisine} • {chef.experience}
-                                </p>
+                                  ))}
                               </div>
-                              <div className="text-right flex-shrink-0 ml-2">
-                                <div className="flex items-center gap-1 mb-1">
-                                  <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-amber-400 text-amber-400" />
-                                  <span className="font-bold text-gray-900 text-sm sm:text-base">{chef.rating}</span>
-                                  <span className="text-gray-500 text-xs sm:text-sm">({chef.reviewCount})</span>
+
+                              {/* Location and Availability */}
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
+                                <div className="flex items-center gap-1 text-gray-600">
+                                  <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                                  <span className="font-medium truncate">
+                                    {chef.location || "Location not specified"}
+                                  </span>
                                 </div>
-                                <Badge
+                                <div className="flex items-center gap-1 text-green-600">
+                                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                                  <span className="font-medium">{chef.is_available ? "Available" : "Unavailable"}</span>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                                <Button
+                                  size="sm"
+                                  className="flex-1 bg-primary text-white rounded-xl font-medium text-xs sm:text-sm"
+                                >
+                                  Book Now
+                                </Button>
+                                <Button
+                                  size="sm"
                                   variant="outline"
-                                  className="text-xs font-semibold border-gray-200 text-gray-700"
+                                  className="px-2 sm:px-3 border-gray-200 rounded-xl bg-transparent"
                                 >
-                                  {chef.priceRange}
-                                </Badge>
+                                  <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
                               </div>
-                            </div>
-
-                            {/* Specialties */}
-                            <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3">
-                              {chef.specialties.slice(0, window.innerWidth < 640 ? 2 : 3).map((specialty) => (
-                                <Badge
-                                  key={specialty}
-                                  className="text-xs bg-gray-100 text-gray-700 border-0 rounded-full px-2 py-1"
-                                >
-                                  {specialty}
-                                </Badge>
-                              ))}
-                            </div>
-
-                            {/* Location and Availability */}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
-                              <div className="flex items-center gap-1 text-gray-600">
-                                <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                                <span className="font-medium truncate">{chef.location}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-green-600">
-                                <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                                <span className="font-medium">{chef.availability}</span>
-                              </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                              <Button
-                                size="sm"
-                                className="flex-1 bg-primary text-white rounded-xl font-medium text-xs sm:text-sm"
-                              >
-                                Book Now
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="px-2 sm:px-3 border-gray-200 rounded-xl bg-transparent"
-                              >
-                                <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            ))}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              )
+            })}
           </AnimatePresence>
 
           {/* No Results */}

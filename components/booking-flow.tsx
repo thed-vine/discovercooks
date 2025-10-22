@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, Users, Check, Star, ChefHat } from "lucide-react"
+import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, Users, Check, Star, ChefHat, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 
@@ -66,7 +68,11 @@ const steps = [
 
 export function BookingFlow({ chef }: BookingFlowProps) {
   const router = useRouter()
+  const { user } = useAuth()
+  const supabase = createClient()
   const [currentStep, setCurrentStep] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [bookingData, setBookingData] = useState<BookingData>({
     service: null,
     date: "",
@@ -76,7 +82,7 @@ export function BookingFlow({ chef }: BookingFlowProps) {
     specialRequests: "",
     contactInfo: {
       name: "",
-      email: "",
+      email: user?.email || "",
       phone: "",
     },
   })
@@ -100,10 +106,57 @@ export function BookingFlow({ chef }: BookingFlowProps) {
     setCurrentStep(2)
   }
 
-  const handleBookingConfirm = () => {
-    // In a real app, this would submit to an API
-    console.log("Booking confirmed:", bookingData)
-    router.push(`/booking-success?chef=${chef.id}`)
+  const handleBookingConfirm = async () => {
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
+
+    if (!bookingData.service) {
+      setError("Please select a service")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      // Create booking in Supabase
+      const { data, error: bookingError } = await supabase
+        .from("bookings")
+        .insert({
+          user_id: user.id,
+          chef_id: chef.id,
+          service_type: bookingData.service.id,
+          event_date: bookingData.date,
+          event_time: bookingData.time,
+          duration_hours: Number.parseInt(bookingData.service.duration.split("-")[0]) || 3,
+          guest_count: bookingData.guests,
+          location: bookingData.location,
+          special_requests: bookingData.specialRequests || null,
+          total_price: getTotalPrice(),
+          status: "pending",
+          contact_name: bookingData.contactInfo.name,
+          contact_email: bookingData.contactInfo.email,
+          contact_phone: bookingData.contactInfo.phone,
+        })
+        .select()
+        .single()
+
+      if (bookingError) {
+        console.error("Booking error:", bookingError)
+        setError("Failed to create booking. Please try again.")
+        return
+      }
+
+      // Redirect to success page with booking ID
+      router.push(`/booking-success?bookingId=${data.id}&chef=${chef.id}`)
+    } catch (error) {
+      console.error("Error creating booking:", error)
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const canProceed = () => {
@@ -124,6 +177,23 @@ export function BookingFlow({ chef }: BookingFlowProps) {
   const getTotalPrice = () => {
     if (!bookingData.service) return 0
     return bookingData.service.price * bookingData.guests
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <ChefHat className="h-12 w-12 text-primary mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Sign in to Book</h2>
+            <p className="text-muted-foreground mb-4">You need to be signed in to book a chef</p>
+            <Button onClick={() => router.push("/auth/login")} className="w-full">
+              Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -195,6 +265,15 @@ export function BookingFlow({ chef }: BookingFlowProps) {
           </div>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-red-800 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Step Content */}
       <div className="flex-1 p-4 pb-24">
@@ -450,17 +529,26 @@ export function BookingFlow({ chef }: BookingFlowProps) {
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
         <div className="flex gap-3">
           {currentStep > 1 && (
-            <Button variant="outline" onClick={handleBack} className="flex-1 bg-transparent">
+            <Button variant="outline" onClick={handleBack} className="flex-1 bg-transparent" disabled={isSubmitting}>
               Back
             </Button>
           )}
           <Button
             onClick={currentStep === 4 ? handleBookingConfirm : handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed() || isSubmitting}
             className="flex-1"
           >
-            {currentStep === 4 ? "Confirm Booking" : "Continue"}
-            {currentStep < 4 && <ArrowRight className="h-4 w-4 ml-2" />}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating Booking...
+              </>
+            ) : (
+              <>
+                {currentStep === 4 ? "Confirm Booking" : "Continue"}
+                {currentStep < 4 && <ArrowRight className="h-4 w-4 ml-2" />}
+              </>
+            )}
           </Button>
         </div>
       </div>
