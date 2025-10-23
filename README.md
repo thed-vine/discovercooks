@@ -1,155 +1,159 @@
-# ChefConnect 🍳✨
+# 🍽️ ChefTok — Where Culinary Talent Meets Opportunity  
 
-*Discover, Connect, and Book Amazing Chefs for Your Special Moments*
-
-
-## 🎯 About ChefConnect
-
-ChefConnect revolutionizes how people discover and book culinary talent by combining social media discovery with seamless chef booking. Our platform allows food enthusiasts to discover amazing chefs through engaging short-form video content, then directly book them for private dining experiences or catering services.
-
-**Think TikTok meets culinary booking** - where food content drives real business connections.
+*Watch. Discover. Book. Your next culinary experience starts here.*  
 
 ---
 
-## ✨ Key Features
+## 🎯 About ChefTok  
 
-### 🎥 **Content Discovery**
-- **Short-form video posts** from professional chefs showcasing their culinary skills
-- **Infinite scroll feed** similar to TikTok for engaging content discovery
-- **Advanced filtering** by cuisine type, location, price range, and availability
-- **Chef profiles** with ratings, reviews, and portfolio galleries
+ChefTok transforms how people experience food and culinary creativity by merging **short-form video content** with **real-world chef bookings**. Food lovers can discover chefs through engaging videos, explore their specialties, and book them instantly for private dining, catering, or cooking experiences.  
 
-### 📅 **Seamless Booking System**
-- **One-tap booking** directly from video content
-- **Flexible booking options**: Private dining, catering for events, cooking classes
-- **Calendar integration** for availability management
-- **Secure payment processing** with multiple payment options
-
-### 💬 **Direct Communication**
-- **In-app messaging** between customers and chefs
-- **Menu customization discussions** and dietary requirement coordination
-- **Real-time updates** on booking status and preparation progress
-- **Photo sharing** of meal preparation and final results
-
-### 🏠 **Comprehensive Management**
-- **Booking dashboard** for customers to manage all reservations
-- **Review and rating system** with photo uploads
-- **Cancellation and refund management**
-- **Favorite chefs** and wishlist functionality
+**Imagine TikTok — but for chefs**, where every swipe could lead to your next unforgettable meal.  
 
 ---
 
-## 🚀 How It Works
+## ✨ Key Features  
 
-### For Food Lovers:
-1. **Discover** → Browse chef-created food videos on your personalized feed
-2. **Connect** → Find a dish you love and view the chef's profile
-3. **Book** → Choose between private dining or catering services
-4. **Communicate** → Chat directly with your chef about menu preferences
-5. **Enjoy** → Experience amazing food and leave a review
+### 🎥 **Culinary Content Discovery**  
+- **Short-form chef videos** showcasing dishes, recipes, and behind-the-scenes cooking  
+- **TikTok-style infinite feed** for endless culinary inspiration  
+- **Filter by cuisine, price, availability, and chef location**  
+- **Chef profiles** featuring reviews, menus, and portfolios  
 
-### For Chefs:
-1. **Create** → Post engaging videos of your culinary creations
-2. **Showcase** → Build your profile with specialties and availability
-3. **Connect** → Receive booking requests from interested customers
-4. **Coordinate** → Plan menus and logistics through in-app messaging
-5. **Deliver** → Provide exceptional culinary experiences and grow your business
+### 📅 **Effortless Booking System**  
+- **Book directly** from videos or profiles in just one tap  
+- **Flexible options**: Private dining, event catering, or virtual cooking classes  
+- **Smart calendar sync** for chef availability  
+- **Secure payments** powered by Stripe and Paystack  
 
----
+### 💬 **Chef–Client Communication**  
+- **Built-in chat** for menu discussions and event coordination  
+- **Dietary preference management** and customization requests  
+- **Booking status updates** in real time  
+- **Photo sharing** for menu previews or live updates  
 
-## 🛠 Tech Stack
-
-### Frontend
-- **Framework**: React Native / Flutter (Cross-platform mobile development)
-- **State Management**: Redux / MobX
-- **UI Components**: Custom design system with smooth animations
-- **Video Processing**: FFmpeg for video optimization and filters
-
-### Backend
-- **Runtime**: Node.js with Express.js
-- **Database**: PostgreSQL with Redis for caching
-- **File Storage**: AWS S3 for video and image storage
-- **Real-time**: Socket.io for messaging and live updates
-
-### Infrastructure
-- **Cloud Provider**: AWS / Google Cloud Platform
-- **CDN**: CloudFront for global content delivery
-- **Payment**: Stripe integration for secure transactions
-- **Push Notifications**: Firebase Cloud Messaging
+### 🏠 **Chef & User Dashboards**  
+- **Chefs:** Manage bookings, menus, and revenue analytics  
+- **Users:** Track reservations, rate experiences, and favorite chefs  
+- **Transparent review system** with media uploads  
+- **Cancellation, refund, and reschedule management**  
 
 ---
 
-## 📱 Screenshots
+## 🚀 How It Works  
 
-*Screenshots coming soon - app currently in development*
+### 👩‍🍳 For Food Lovers  
+1. **Discover** → Watch food videos tailored to your tastes  
+2. **Connect** → Learn more about the chefs behind the dishes  
+3. **Book** → Secure your private dining or catering session  
+4. **Chat** → Customize your experience directly with the chef  
+5. **Enjoy** → Savor the moment and share your review  
 
-| Feed Discovery | Chef Profile | Booking Flow | Messaging |
-|---|---|---|---|
-| 🎥 | 👨‍🍳 | 📅 | 💬 |
-
----
-
-## 🎯 Target Market
-
-- **Primary**: Urban professionals aged 25-45 seeking unique dining experiences
-- **Secondary**: Event planners, busy families, and food enthusiasts
-- **Geographic**: Initially launching in major metropolitan areas
-
----
-
-## 📈 Business Model
-
-- **Commission-based**: Platform fee on completed bookings
-- **Premium subscriptions**: Enhanced features for chefs and power users
-- **Featured listings**: Promoted placement for chef content
-- **Partner integrations**: Revenue sharing with culinary schools and equipment suppliers
+### 👨‍🍳 For Chefs  
+1. **Create** → Post engaging cooking videos and showcase your talent  
+2. **Optimize** → Add specialties, pricing, and availability  
+3. **Engage** → Receive and manage booking requests  
+4. **Collaborate** → Chat and coordinate with clients  
+5. **Thrive** → Earn income and grow your personal brand  
 
 ---
 
-## 🚧 Development Roadmap
+## 🛠 Tech Stack  
 
-### Phase 1: MVP (Current)
-- [x] User authentication and profiles
-- [x] Basic video upload and feed
-- [ ] Core booking functionality
-- [ ] In-app messaging system
-- [ ] Payment integration
+### **Frontend**  
+- **Framework:** React Native / Flutter  
+- **UI Library:** Custom components + Framer Motion animations  
+- **State Management:** Redux Toolkit or Zustand  
+- **Video Processing:** FFmpeg integration for compression and filters  
 
-### Phase 2: Enhanced Features
-- [ ] Advanced search and filtering
-- [ ] Review and rating system
-- [ ] Push notifications
-- [ ] Analytics dashboard for chefs
+### **Backend**  
+- **Runtime:** Node.js with Express.js  
+- **Database:** PostgreSQL (with Prisma ORM)  
+- **Cache Layer:** Redis for fast queries and sessions  
+- **Media Storage:** AWS S3 for videos and images  
+- **Real-Time Features:** Socket.io for live chat and notifications  
 
-### Phase 3: Scale & Expansion
-- [ ] AI-powered chef recommendations
-- [ ] Group booking functionality
-- [ ] Integration with delivery services
-- [ ] Multi-city expansion
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+### **Infrastructure**  
+- **Hosting:** AWS / Google Cloud Platform  
+- **CDN:** CloudFront for global delivery  
+- **Payments:** Stripe & Paystack integrations  
+- **Notifications:** Firebase Cloud Messaging  
 
 ---
 
-## 📞 Contact & Business Inquiries
+## 📱 App Preview  
 
-**Founders**: Divine Enyinnayah & Stephanie Ezeokana  
-**Email**: [will be up soon]  
-**LinkedIn**: [will be up soon]  
-**Business Inquiries**: [will be up soon]
+*(Coming soon — ChefTok UI in development)*  
 
----
-
-## 🌟 Join Our Journey
-
-ChefConnect is more than just an app - we're building a community that celebrates culinary artistry while making amazing food experiences accessible to everyone. 
-
-**Interested in partnering with us?** We're always looking for talented chefs, investors, and team members who share our passion for food and technology.
+| Feed | Chef Profile | Booking | Messaging |
+|------|---------------|----------|-----------|
+| 🎬 | 👨‍🍳 | 📆 | 💬 |
 
 ---
 
-*Made with ❤️ and a lot of ☕ by the ChefConnect Team*
+## 🎯 Target Market  
+
+- **Primary Audience:** Urban professionals & food enthusiasts (ages 25–45)  
+- **Secondary Audience:** Event planners, corporate hosts, and culinary hobbyists  
+- **Launch Focus:** Major urban cities with strong food culture  
+
+---
+
+## 💸 Business Model  
+
+- **Commission Fee**: Percentage on every successful booking  
+- **ChefTok Pro**: Subscription plans with premium analytics & exposure  
+- **Promoted Listings**: Boosted video placements on feed  
+- **Partnerships**: Collaborations with food brands, schools & events  
+
+---
+
+## 🧭 Development Roadmap  
+
+### **Phase 1: MVP (Current)**  
+- [x] Authentication and onboarding  
+- [x] Video uploads & feed  
+- [ ] Booking system  
+- [ ] In-app messaging  
+- [ ] Payment gateway setup  
+
+### **Phase 2: Growth Features**  
+- [ ] Reviews & ratings  
+- [ ] Notifications & reminders  
+- [ ] Chef analytics dashboard  
+- [ ] Advanced filtering  
+
+### **Phase 3: Expansion**  
+- [ ] AI-based chef & cuisine recommendations  
+- [ ] Multi-chef event booking  
+- [ ] Local delivery & meal kits  
+- [ ] Global city rollouts  
+
+---
+
+## 📄 License  
+
+This project is licensed under the **MIT License** — see the [LICENSE.md](LICENSE.md) file for more details.  
+
+---
+
+## 👥 Founding Team & Contact  
+
+**Founders:** Divine Enyinnayah & Stephanie Ezeokana  
+**Email:** [coming soon]  
+**LinkedIn:** [coming soon]  
+**Press & Partnerships:** [coming soon]  
+
+---
+
+## 🌟 Join the Movement  
+
+ChefTok is redefining the way food creators connect with audiences and clients.  
+We’re not just building an app — we’re creating a stage where culinary talent shines.  
+
+**Want to join our journey?**  
+We’re open to collaborations with chefs, creators, investors, and food lovers who share our vision.  
+
+---
+
+*Built with ❤️, code, and a lot of caffeine by the ChefTok Team*  
