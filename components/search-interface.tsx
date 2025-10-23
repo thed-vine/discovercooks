@@ -221,11 +221,12 @@ export function SearchInterface() {
     )
   }
 
+  // Replace the outer container div with this updated structure
   return (
-    <div className="fixed inset-0 h-screen w-screen bg-gray-50 pb-16 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
+    <div className="min-h-screen bg-gray-50">
       {/* Search Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="p-4 space-y-4">
+      <div className="bg-white border-b">
+        <div className="p-4 sm:p-6 space-y-4">
           {/* Search Bar */}
           <div className="relative">
             <div className="relative">
@@ -441,8 +442,8 @@ export function SearchInterface() {
         </div>
       </div>
 
-      {/* Results */}
-      <div className="p-4">
+      {/* Results Section */}
+      <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">
             {filteredChefs.length} chef{filteredChefs.length !== 1 ? "s" : ""} found
@@ -459,7 +460,7 @@ export function SearchInterface() {
           )}
         </div>
 
-        {/* Chef Results */}
+        {/* Chef Results Grid */}
         <div className="space-y-4">
           <AnimatePresence>
             {filteredChefs.map((chef, index) => {
@@ -481,7 +482,7 @@ export function SearchInterface() {
                   transition={{ delay: index * 0.05 }}
                 >
                   <Link href={`/chef/${chef.id}`}>
-                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer bg-white border-0 shadow-sm rounded-2xl overflow-hidden">
+                    <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl overflow-hidden">
                       <CardContent className="p-0">
                         {/* Cover Image Section */}
                         <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/10 to-primary/5">
@@ -605,14 +606,16 @@ export function SearchInterface() {
           {/* No Results */}
           {filteredChefs.length === 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-              <div className="bg-white rounded-2xl p-8 shadow-sm">
-                <ChefHat className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No chefs found</h3>
-                <p className="text-gray-600 mb-6">Try adjusting your search or filters to find more chefs.</p>
-                <Button onClick={clearFilters} className="bg-primary text-white rounded-xl px-6">
-                  Clear all filters
-                </Button>
-              </div>
+              <Card className="border-0 shadow-sm rounded-2xl">
+                <CardContent className="p-8">
+                  <ChefHat className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No chefs found</h3>
+                  <p className="text-gray-600 mb-6">Try adjusting your search or filters to find more chefs.</p>
+                  <Button onClick={clearFilters} className="bg-primary text-white rounded-xl px-6">
+                    Clear all filters
+                  </Button>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
         </div>

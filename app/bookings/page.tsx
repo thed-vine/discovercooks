@@ -174,17 +174,19 @@ export default function BookingsPage() {
   )
 
   return (
-  <div className="fixed inset-0 h-screen w-screen bg-gray-50 overflow-hidden" style={{ maxHeight: '100dvh', minHeight: '100dvh', height: '100dvh' }}>
-      <div className="bg-white border-b">
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
+      {/* Fixed Header */}
+      <div className="flex-none bg-white border-b">
         <div className="p-4">
           <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
           <p className="text-muted-foreground text-sm mt-1">Manage your chef experiences</p>
         </div>
       </div>
 
-  <div className="p-4 h-[calc(100dvh-64px)] overflow-y-auto">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+      {/* Tabs and Scrollable Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-none px-4 bg-white border-b">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="upcoming" className="text-sm">
               Upcoming ({mockBookings.upcoming.length})
             </TabsTrigger>
@@ -192,33 +194,37 @@ export default function BookingsPage() {
               Past ({mockBookings.past.length})
             </TabsTrigger>
           </TabsList>
+        </div>
 
-          <TabsContent value="upcoming" className="space-y-4">
-            {mockBookings.upcoming.length > 0 ? (
-              mockBookings.upcoming.map((booking) => <BookingCard key={booking.id} booking={booking} />)
-            ) : (
-              <div className="text-center py-12">
-                <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No upcoming bookings</h3>
-                <p className="text-muted-foreground mb-4">Ready to book your next culinary experience?</p>
-                <Button className="bg-primary text-white">Discover Chefs</Button>
-              </div>
-            )}
-          </TabsContent>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4">
+            <TabsContent value="upcoming" className="space-y-4 mt-0">
+              {mockBookings.upcoming.length > 0 ? (
+                mockBookings.upcoming.map((booking) => <BookingCard key={booking.id} booking={booking} />)
+              ) : (
+                <div className="text-center py-12">
+                  <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No upcoming bookings</h3>
+                  <p className="text-muted-foreground mb-4">Ready to book your next culinary experience?</p>
+                  <Button className="bg-primary text-white">Discover Chefs</Button>
+                </div>
+              )}
+            </TabsContent>
 
-          <TabsContent value="past" className="space-y-4">
-            {mockBookings.past.length > 0 ? (
-              mockBookings.past.map((booking) => <BookingCard key={booking.id} booking={booking} isPast={true} />)
-            ) : (
-              <div className="text-center py-12">
-                <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No past bookings</h3>
-                <p className="text-muted-foreground">Your booking history will appear here</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            <TabsContent value="past" className="space-y-4 mt-0">
+              {mockBookings.past.length > 0 ? (
+                mockBookings.past.map((booking) => <BookingCard key={booking.id} booking={booking} isPast={true} />)
+              ) : (
+                <div className="text-center py-12">
+                  <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No past bookings</h3>
+                  <p className="text-muted-foreground">Your booking history will appear here</p>
+                </div>
+              )}
+            </TabsContent>
+          </div>
+        </div>
+      </Tabs>
     </div>
   )
 }

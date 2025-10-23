@@ -28,7 +28,7 @@ export default function RootLayout({
         <AuthProvider>
         <Suspense fallback={<div>Loading...</div>}>
         <div className="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-          <div className="w-[432px] h-[936px] bg-white rounded-3xl shadow-2xl overflow-hidden relative">{children}</div>
+          <div className="w-[432px] min-h-max bg-white rounded-3xl shadow-2xl overflow-hidden relative">{children}</div>
           <BottomNavigation />
         </div>
         </Suspense>

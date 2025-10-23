@@ -22,7 +22,7 @@ interface Video {
   id: string
   title: string
   description: string | null
-  video_url: string
+  video_path: string
   videoUrl: string
   thumbnail_url: string | null
   duration: number | null
@@ -36,35 +36,53 @@ interface Video {
   chef: Chef
 }
 
+type VideoWithUrl = Video & { publicUrl: string }
+
 export function VideoFeed() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
-  const [videos, setVideos] = useState<Video[]>([])
+  const [videos, setVideos] = useState<VideoWithUrl[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef(0)
   const touchEndY = useRef(0)
   const supabase = createClient()
+  const isPrivateBucket = true // set to false if bucket is public
 
-  const fetchVideos = async (offset = 0, limit = 10): Promise<Video[]> => {
+  // helper to build playback URL (use signed URL for private buckets)
+  async function buildPlaybackUrl(path: string) {
+    if (!path) return ""
+    if (!isPrivateBucket) {
+      const { data } = supabase.storage.from("videos").getPublicUrl(path)
+      return data?.publicUrl || ""
+    }
+    // createSignedUrl returns { publicURL } in older clients; handle response shape
+    const expireSeconds = 60 * 60 // 1 hour
+    const { data, error } = await supabase.storage.from("videos").createSignedUrl(path, expireSeconds)
+    if (error) {
+      console.error("createSignedUrl error", error)
+      return ""
+    }
+    return (data as any)?.signedURL || (data as any)?.publicURL || ""
+  }
+
+  const fetchVideos = async (offset = 0, limit = 10): Promise<VideoWithUrl[]> => {
     try {
       const { data, error } = await supabase
-        .from("videos")
+        .from('videos')
         .select(`
           id,
           title,
           description,
-          video_url,
+          video_path,
           thumbnail_url,
           duration,
           tags,
           likes_count,
           views_count,
-          comments_count,
-          shares_count,
-          chef:chefs(
+          chef:chefs (
             id,
             name,
             avatar_url,
@@ -75,57 +93,82 @@ export function VideoFeed() {
             price_per_hour
           )
         `)
-        .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1)
+        .order('created_at', { ascending: false })
 
       if (error) {
-        console.error("Supabase error fetching videos:", error)
-        setError("Failed to load videos")
+        console.error("Error fetching videos:", error)
         return []
       }
 
-      if (!data || data.length === 0) return []
-
-      // Normalize rows: Supabase join returns chef as array; convert to object and map snake_case to expected fields.
-      const normalized: Video[] = (data as any[]).map((v: any) => {
-        const chefRaw = Array.isArray(v.chef) ? v.chef[0] : v.chef
-        const chef: Chef = {
-          id: chefRaw?.id ?? "",
-          name: chefRaw?.name ?? "",
-          avatar_url: chefRaw?.avatar_url ?? null,
-          cuisines: chefRaw?.cuisines ?? [],
-          rating: chefRaw?.rating ?? 0,
-          is_verified: !!chefRaw?.is_verified,
-          location: chefRaw?.location ?? null,
-          price_per_hour: chefRaw?.price_per_hour ?? 0,
-        }
-
+      // Build video URLs in parallel
+      const videosWithUrls = await Promise.all((data || []).map(async (video: any) => {
+        const publicUrl = await buildPlaybackUrl(video.video_path)
+        
         return {
-          id: v.id,
-          title: v.title,
-          description: v.description ?? null,
-          video_url: v.video_url ?? v.videoUrl ?? "",
-          videoUrl: v.video_url ?? v.videoUrl ?? "",
-          thumbnail_url: v.thumbnail_url ?? null,
-          duration: v.duration ?? null,
-          tags: v.tags ?? [],
-          likes_count: v.likes_count ?? 0,
-          likes: v.likes_count ?? 0,
-          comments: v.comments_count ?? 0,
-          shares: v.shares_count ?? 0,
-          isBookmarked: false,
-          views_count: v.views_count ?? 0,
-          chef,
-        } as Video
-      })
+          id: video.id,
+          title: video.title || "",
+          description: video.description || "",
+          video_path: video.video_path,
+          videoUrl: publicUrl, // This is the playback URL
+          thumbnail_url: video.thumbnail_url,
+          duration: video.duration || 0,
+          tags: video.tags || [],
+          likes_count: video.likes_count || 0,
+          likes: video.likes_count || 0,
+          comments: 0, // Add if you have comments count
+          shares: 0,
+          views_count: video.views_count || 0,
+          chef: {
+            id: video.chef?.id || "",
+            name: video.chef?.name || "",
+            avatar_url: video.chef?.avatar_url || null,
+            cuisines: video.chef?.cuisines || [],
+            rating: video.chef?.rating || 0,
+            is_verified: !!video.chef?.is_verified,
+            location: video.chef?.location || null,
+            price_per_hour: video.chef?.price_per_hour || 0
+          }
+        } as VideoWithUrl
+      }))
 
-      return normalized
+      return videosWithUrls
     } catch (err) {
-      console.error("Error fetching videos:", err)
-      setError("Failed to load videos")
+      console.error("Error in fetchVideos:", err)
       return []
     }
   }
+
+  // realtime subscriptions for likes/comments to keep feed in sync
+  useEffect(() => {
+    const likesSub = supabase
+    .channel("public:likes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "likes" }, (payload) => {
+      const { new: newRow, old: oldRow } = payload
+      if (!newRow && !oldRow) return
+      // update local likes_count for affected video id
+      const videoId = ((newRow || oldRow) as any)['video_id']
+      setVideos((prev) =>
+        prev.map((v) => (v.id === videoId ? { ...v, likes_count: ((v.likes_count || 0) + (newRow ? 1 : -1)) } : v))
+      )
+    })
+      .subscribe()
+  
+    const commentsSub = supabase
+      .channel("public:comments")
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, (payload) => {
+        const { new: newRow } = payload
+        if (!newRow || !('video_id' in newRow)) return
+        const videoId = newRow.video_id
+        setVideos((prev) => prev.map((v) => (v.id === videoId ? { ...v, comments: (v.comments || 0) + 1 } : v)))
+      })
+      .subscribe()
+  
+    return () => {
+      supabase.removeChannel(likesSub)
+      supabase.removeChannel(commentsSub)
+    }
+  }, [])
 
   useEffect(() => {
     const loadInitialVideos = async () => {
@@ -186,7 +229,7 @@ export function VideoFeed() {
   }
 
   const loadMoreVideos = async () => {
-    const moreVideos = await fetchVideos(videos.length, 10)
+    const moreVideos = await fetchVideos(videos.length, 10) as VideoWithUrl[]
     if (moreVideos.length > 0) {
       setVideos((prevVideos) => [...prevVideos, ...moreVideos])
     }
@@ -229,6 +272,46 @@ export function VideoFeed() {
     }),
   }
 
+  // Prefetch next video when current index changes
+  useEffect(() => {
+    if (currentIndex < videos.length - 2) {
+      // Prefetch next video URL
+      const nextVideo = videos[currentIndex + 1]
+      if (nextVideo && !nextVideo.videoUrl) {
+        buildPlaybackUrl(nextVideo.video_path).then(url => {
+          setVideos(prev => 
+            prev.map((v, i) => i === currentIndex + 1 ? { ...v, videoUrl: url } : v)
+          )
+        })
+      }
+    }
+
+    // Load more videos when approaching the end
+    if (currentIndex >= videos.length - 2) {
+      loadMoreVideos()
+    }
+  }, [currentIndex, videos.length])
+
+  // Handle initial video load and autoplay
+  useEffect(() => {
+    if (videos.length === 0) {
+      const loadInitialVideos = async () => {
+        setLoading(true)
+        try {
+          const initialVideos = await fetchVideos(0, 5) // Start with 5 videos
+          setVideos(initialVideos)
+        } catch (err) {
+          console.error("Failed to load initial videos:", err)
+          setError("Failed to load videos")
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      loadInitialVideos()
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="h-screen bg-black flex items-center justify-center">
@@ -251,7 +334,7 @@ export function VideoFeed() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 h-screen w-screen overflow-hidden bg-black touch-none"
+      className="fixed  h-fill w-[432px] overflow-hidden bg-black touch-none"
       style={{ maxHeight: "100dvh", minHeight: "100dvh", height: "100dvh" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

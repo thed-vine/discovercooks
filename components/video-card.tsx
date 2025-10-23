@@ -23,7 +23,7 @@ interface Chef {
 interface Video {
   id: string
   chef: Chef
-  videoUrl: string
+  video_path: string
   title: string
   description: string
   likes: number
@@ -58,6 +58,8 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
   const touchStartYRef = useRef(0)
   const touchEndYRef = useRef(0)
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  
 
   // Auto-hide play button after delay
   useEffect(() => {
@@ -96,6 +98,7 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
     }
   }, [isActive])
 
+  
   // Touch and tap logic for swipe, single tap, double tap
   const handleTouchStart = (e: React.TouchEvent) => {
     const now = Date.now()
@@ -287,7 +290,7 @@ export function VideoCard({ video, isActive, onNext, onPrevious, canGoNext, canG
       >
         <video
           ref={videoRef}
-          src={video.videoUrl || "/placeholder-video.mp4"}
+          src={video.video_path || "/placeholder-video.mp4"} 
           className="h-full w-full object-cover"
           muted
           loop
